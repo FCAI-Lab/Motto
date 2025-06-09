@@ -14,9 +14,36 @@ Module Tac.
   Ltac simplNotation :=
     autounfold with session_hints in *; simpl in *.
 
+  Ltac get_last_assumption :=
+    lazymatch goal with
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _, x15 : _, x16 : _, x17 : _, x18 : _, x19 : _, x20 : _ |- ?A ] => x20
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _, x15 : _, x16 : _, x17 : _, x18 : _, x19 : _ |- ?A ] => x19
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _, x15 : _, x16 : _, x17 : _, x18 : _ |- ?A ] => x18
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _, x15 : _, x16 : _, x17 : _ |- ?A ] => x17
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _, x15 : _, x16 : _ |- ?A ] => x16
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _, x15 : _ |- ?A ] => x15
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _ |- ?A ] => x14
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _ |- ?A ] => x13
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _ |- ?A ] => x12
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _ |- ?A ] => x11
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _ |- ?A ] => x10
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _ |- ?A ] => x9
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _ |- ?A ] => x8
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _ |- ?A ] => x7
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _ |- ?A ] => x6
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _ |- ?A ] => x5
+    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _ |- ?A ] => x4
+    | [ x0 : _, x1 : _, x2 : _, x3 : _ |- ?A ] => x3
+    | [ x0 : _, x1 : _, x2 : _ |- ?A ] => x2
+    | [ x0 : _, x1 : _ |- ?A ] => x1
+    | [ x0 : _ |- ?A ] => x0
+    end.
+
 End Tac.
 
 #[global] Create HintDb session_hints.
+
+#[global] Hint Constructors Forall : session_hints.
 
 Module SessionPrelude.
 
@@ -855,7 +882,8 @@ Module SessionPrelude.
 
     Context {A : Type} {well_formed : A -> Prop}.
 
-    Definition mk_hint := @Forall_well_formed_elim A well_formed.
+    Definition mk_hint : ∀ xs : list A, Forall well_formed xs -> ∀ x : A, ∀ i : nat, xs !! i = Some x -> well_formed x :=
+      @Forall_well_formed_elim A well_formed.
 
     #[local] Hint Resolve mk_hint : core.
 
@@ -1048,10 +1076,10 @@ Module SessionPrelude.
   #[global] Arguments value_of {A} {has_value_of} _ /.
 
   #[global]
-  Instance w64_has_value_of : has_value_of w64 :=
-    fun x : w64 => #x.
+  Instance u64_has_value_of : has_value_of u64 :=
+    fun x : u64 => #x.
 
-  #[global] Arguments w64_has_value_of x /.
+  #[global] Arguments u64_has_value_of x /.
 
   #[global]
   Instance Slice_has_value_of : has_value_of Slice.t :=
@@ -1182,4 +1210,4 @@ Instance tuple_of_has_value_of {n} (Ts: TypeVector.t (S n)) : SessionPrelude.has
 
 #[global] Arguments tuple_of_has_value_of {n} Ts /.
 
-#[global] Hint Unfold TypeVector.lookup SessionPrelude.w64_has_value_of SessionPrelude.Slice_has_value_of : session_hints.
+#[global] Hint Unfold TypeVector.lookup SessionPrelude.u64_has_value_of SessionPrelude.Slice_has_value_of : session_hints.

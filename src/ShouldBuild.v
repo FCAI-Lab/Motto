@@ -120,6 +120,6 @@ From New Require should_build.
 *** "----------------- irrelevant -----------------" *)
 
 From Perennial Require LiteBuild.
-From Perennial.program_proof.session Require
+From Perennial.program_proof.session Require Import
      session_prelude session_definitions
 .
