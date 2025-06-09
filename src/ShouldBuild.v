@@ -119,3 +119,4 @@ From New Require should_build.
 
 From Perennial Require LiteBuild.
 From Perennial.program_proof.session Require session_prelude.
+From Perennial.program_proof.session Require session_definitions.

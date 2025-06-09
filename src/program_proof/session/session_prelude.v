@@ -1,14 +1,17 @@
 From Perennial.program_proof Require Export std_proof grove_prelude.
 From Goose.session Require server client.
 
-#[local] Obligation Tactic := intros.
+Module SessionServer := Goose.session.server.
+Module SessionClient := Goose.session.client.
 
-Create HintDb session_hints.
+#[global] Create HintDb session_hints.
 
 Module SessionPrelude.
 
   #[local] Tactic Notation "word" :=
     intros; word.
+
+  #[local] Obligation Tactic := intros.
 
   Section MORE_LIST_LEMMAS.
 
@@ -1159,13 +1162,13 @@ Notation "x !( i )" := (TypeVector.lookup x i).
 Definition tuple_of {n: nat} (Ts: TypeVector.t (S n)) : Type :=
   TypeVector.tuple_of n Ts.
 
-Arguments tuple_of {n} Ts : simpl never.
+#[global] Arguments tuple_of {n} Ts : simpl never.
 
 #[global]
 Instance tuple_of_has_value_of {n} (Ts: TypeVector.t (S n)) : SessionPrelude.has_value_of (tuple_of Ts) :=
   TypeVector.magic n Ts #()%V.
 
-Arguments tuple_of_has_value_of {n} Ts /.
+#[global] Arguments tuple_of_has_value_of {n} Ts /.
 
 #[global] Hint Unfold TypeVector.lookup SessionPrelude.w64_has_value_of SessionPrelude.Slice_has_value_of : session_hints.
 
@@ -1180,6 +1183,3 @@ Module Tac.
     autounfold with session_hints in *; simpl in *.
 
 End Tac.
-
-Module SessionServer := Goose.session.server.
-Module SessionClient := Goose.session.client.
