@@ -17,6 +17,11 @@ The Coq Proof Assistant, version 8.20.0
 compiled with OCaml 5.2.1
 ```
 
+## Progress
+
+[v] session_prelude.v (1186 lines)
+[ ] session_definitions.v
+
 ## Notable Changes
 
 ### 2025-06-09
