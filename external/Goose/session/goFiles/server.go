@@ -127,10 +127,6 @@ func equalSlices(s1 []uint64, s2 []uint64) bool {
 	return output
 }
 
-func equalOperations(o1 Operation, o2 Operation) bool {
-	return equalSlices(o1.VersionVector, o2.VersionVector) && (o1.Data == o2.Data)
-}
-
 func binarySearch(s []Operation, needle Operation) uint64 {
 	var i = uint64(0)
 	var j = uint64(len(s))

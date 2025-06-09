@@ -32,3 +32,7 @@ compiled with OCaml 5.2.1
 - Added the files `session_definitions.v` and `session_prelude.v` in the directory `src/program_proof/session/`. They include the basic definitions and lemmas, which will be used to verify the Go files, and export `std_proof` and `grove_prelude`.
 - Modified `src/ShouldBuild.v`. Now, it requires only `src/LiteBuild.v` and all `src/program_proof/session/*.v`.
 - Modified `Makefile`, to fix an error raised when running `make`.
+
+### 2025-06-10
+
+- Remove the Go function `equalOperations()`.

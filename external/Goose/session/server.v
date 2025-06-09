@@ -128,10 +128,6 @@ Definition equalSlices: val :=
         Continue));;
     ![boolT] "output".
 
-Definition equalOperations: val :=
-  rec: "equalOperations" "o1" "o2" :=
-    (equalSlices (struct.get Operation "VersionVector" "o1") (struct.get Operation "VersionVector" "o2")) && ((struct.get Operation "Data" "o1") = (struct.get Operation "Data" "o2")).
-
 Definition binarySearch: val :=
   rec: "binarySearch" "s" "needle" :=
     let: "i" := ref_to uint64T #0 in
