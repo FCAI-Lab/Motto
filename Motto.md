@@ -19,7 +19,7 @@ compiled with OCaml 5.2.1
 
 ## Progress
 
-- [x] `session_prelude.v` (1186 lines)
+- [x] `session_prelude.v` (1210 lines)
 - [ ] `session_definitions.v`
 
 ## Notable Changes
@@ -35,4 +35,5 @@ compiled with OCaml 5.2.1
 
 ### 2025-06-10
 
-- Remove the Go function `equalOperations()`.
+- Removed the Go function `equalOperations()`.
+- Added the nat-version Coq counterpart functions.

@@ -802,7 +802,7 @@ Module SessionPrelude.
   Lemma sortedInsert_isSorted l i (l_wf : Forall well_formed l) (i_wf : well_formed i)
     (SORTED : isSorted l)
     : isSorted (sortedInsert l i).
-  Proof with try (word || congruence || eauto || done).
+  Proof with try (congruence || eauto || word).
     pose proof (sortedInsert_spec l i l_wf i_wf SORTED) as (prefix & suffix & H_l & -> & H_prefix & H_suffix & H_wf).
     rename i into x, l into xs. intros i j LE x1 x2 H_x1 H_x2.
     destruct (forallb (fun j : A => negb (eqb j x)) xs) as [ | ] eqn: H_OBS; simpl.
@@ -891,7 +891,7 @@ Module SessionPrelude.
     | h1 :: t1 =>
       match v2 with
       | [] => true
-      | h2 :: t2 => if negb (h1 =? h2) then false else vectorEq t1 t2
+      | h2 :: t2 => (h1 =? h2) && vectorEq t1 t2
       end
     end.
 
