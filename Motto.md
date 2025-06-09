@@ -1,6 +1,6 @@
 # Motto
 
-Our fork for [mit-pdos/perennial](https://github.com/mit-pdos/perennial/commit/8548a371b20bbb764a51db4ee97cfc1bb3ab0e5c)
+Our fork of [mit-pdos/perennial](https://github.com/mit-pdos/perennial/commit/8548a371b20bbb764a51db4ee97cfc1bb3ab0e5c)
 
 ## Quick Start
 
