@@ -1,7 +1,8 @@
 (** ShouldBuild depends on everything that should be regularly compiled (by
 default using make as well as in CI). *)
 
-(* "----------------- useless -----------------"
+(** "----------------- irrelevant -----------------" **
+
 From Perennial.algebra Require ghost_async_map.
 
 From Perennial.goose_lang Require
@@ -116,8 +117,9 @@ From Perennial.program_proof.cachekv Require proof.
 
 From New Require should_build.
 
-"----------------- useless -----------------" *)
+*** "----------------- irrelevant -----------------" *)
 
 From Perennial Require LiteBuild.
-From Perennial.program_proof.session Require session_prelude.
-From Perennial.program_proof.session Require session_definitions.
+From Perennial.program_proof.session Require
+     session_prelude session_definitions
+.

@@ -4,6 +4,18 @@ From Goose.session Require server client.
 Module SessionServer := Goose.session.server.
 Module SessionClient := Goose.session.client.
 
+Module Tac.
+
+  Ltac revert_until y :=
+    lazymatch goal with
+    | [ x : _ |- _ ] => first [convert x y | revert x; revert_until y]
+    end.
+
+  Ltac simplNotation :=
+    autounfold with session_hints in *; simpl in *.
+
+End Tac.
+
 #[global] Create HintDb session_hints.
 
 Module SessionPrelude.
@@ -1171,15 +1183,3 @@ Instance tuple_of_has_value_of {n} (Ts: TypeVector.t (S n)) : SessionPrelude.has
 #[global] Arguments tuple_of_has_value_of {n} Ts /.
 
 #[global] Hint Unfold TypeVector.lookup SessionPrelude.w64_has_value_of SessionPrelude.Slice_has_value_of : session_hints.
-
-Module Tac.
-
-  Ltac revert_until y :=
-    lazymatch goal with
-    | [ x : _ |- _ ] => first [convert x y | revert x; revert_until y]
-    end.
-
-  Ltac simplNotation :=
-    autounfold with session_hints in *; simpl in *.
-
-End Tac.
