@@ -16,6 +16,7 @@ From Perennial.goose_lang Require
 .
 
 From Perennial.goose_lang.ffi Require async_disk async_disk_equiv.
+(* "----------------- useless -----------------"
 From Perennial.program_proof Require
      lockmap_proof
      jrnl_replication.jrnl_replication_proof
@@ -113,3 +114,8 @@ From Perennial.program_proof.verus Require
 From Perennial.program_proof.cachekv Require proof.
 
 From New Require should_build.
+
+"----------------- useless -----------------" *)
+
+From Perennial Require LiteBuild.
+From Perennial.program_proof.session Require session_prelude.
