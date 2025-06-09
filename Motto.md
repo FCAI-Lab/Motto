@@ -35,5 +35,5 @@ compiled with OCaml 5.2.1
 
 ### 2025-06-10
 
-- Removed the Go function `equalOperations()`.
-- Added the nat-version Coq counterpart functions.
+- Removed the Go function `equalOperations()` from `server.go`.
+- Added the nat-version Coq counterpart functions `session_definitions`.

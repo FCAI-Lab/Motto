@@ -664,7 +664,7 @@ Module ServerSide.
         let loop_step (acc: Server.t nat * nat * list nat) (elem: Operation.t nat) : Server.t nat * nat * list nat :=
           let '(server, i, seen) := acc in
             if coq_oneOffVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector) then
-              (Server.mk _ server.(Server.Id) server.(Server.NumberOfServers) server.(Server.UnsatisfiedRequests) (coq_maxTS server.(Server.VectorClock) elem.(Operation.VersionVector)) (coq_sortedInsert server.(Server.OperationsPerformed) elem) server.(Server.MyOperations) server.(Server.PendingOperations) server.(Server.GossipAcknowledgements), (i + 1)%nat, seen ++ [i])
+              (Server.mk nat server.(Server.Id) server.(Server.NumberOfServers) server.(Server.UnsatisfiedRequests) (coq_maxTS server.(Server.VectorClock) elem.(Operation.VersionVector)) (coq_sortedInsert server.(Server.OperationsPerformed) elem) server.(Server.MyOperations) server.(Server.PendingOperations) server.(Server.GossipAcknowledgements), (i + 1)%nat, seen ++ [i])
             else
               (server, (i + 1)%nat, seen)
         in
@@ -706,7 +706,7 @@ Module ServerSide.
       in
       let newGossipAcknowledgements := coq_maxTwoInts prevGossipAcknowledgementsValue r.(Message.S2S_Acknowledge_Gossip_Index) in
       let gossipAcknowledgements := <[i := newGossipAcknowledgements]> l in
-      Server.mk _ s.(Server.Id) s.(Server.NumberOfServers) s.(Server.UnsatisfiedRequests) s.(Server.VectorClock) s.(Server.OperationsPerformed) s.(Server.MyOperations) s.(Server.PendingOperations) gossipAcknowledgements
+      Server.mk nat s.(Server.Id) s.(Server.NumberOfServers) s.(Server.UnsatisfiedRequests) s.(Server.VectorClock) s.(Server.OperationsPerformed) s.(Server.MyOperations) s.(Server.PendingOperations) gossipAcknowledgements
     else
       s.
 
@@ -734,7 +734,7 @@ Module ServerSide.
         let S2C_Client_VersionVector := VectorClock in
         let S2C_Client_Number := r.(Message.C2S_Client_Id) in
         let S2C_Server_Id := s.(Server.Id) in
-        (true, Server.mk nat s.(Server.Id) s.(Server.NumberOfServers) s.(Server.UnsatisfiedRequests) VectorClock OperationsPerformed MyOperations s.(Server.PendingOperations) s.(Server.GossipAcknowledgements), Message.mk nat 4 0 0 0 (W64 0) [] 0 0 [] 0 0 0 0 1 S2C_Client_Data S2C_Client_VersionVector S2C_Server_Id S2C_Client_Number)
+        (true, Server.mk nat s.(Server.Id) s.(Server.NumberOfServers) s.(Server.UnsatisfiedRequests) VectorClock OperationsPerformed MyOperations s.(Server.PendingOperations) s.(Server.GossipAcknowledgements), Message.mk nat 4 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 1 S2C_Client_Data S2C_Client_VersionVector S2C_Server_Id S2C_Client_Number)
     else
       (false, s, Message.mk nat 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0).
 
@@ -1043,7 +1043,15 @@ Proof.
   destruct (coq_equalSlices _ _) as [ | ]; simpl; try word.
 Qed.
 
+(* TODO: Lemma Forall_CONSTANT_replicate, Lemma Forall_CONSTANT_coq_maxTs. *)
+
 End properties.
+
+Module INVARIANT.
+
+(* TODO *)
+
+End INVARIANT.
 
 Section heap.
 
@@ -1070,6 +1078,122 @@ Proof.
     iAssert (⌜Forall (Operation.well_formed n) tl⌝)%I as "%YES2".
     { iApply IH; iExact "H_tl". }
     iPureIntro; econstructor; trivial.
+Qed.
+
+Lemma VersionVector_length s ops n
+  : (isOperationSlice s ops n)%I ⊢@{iProp Σ} (⌜∀ i : nat, ∀ e, ops !! i = Some e -> length e.(Operation.VersionVector) = n⌝)%I.
+Proof.
+  iIntros "(%vs & H_vs & H)".
+  iPoseProof (Forall_Operation_well_formed with "H") as "%H_well_formed".
+  pose proof (List.Forall_forall (Operation.well_formed (u64_well_formed := fun _ => True) n) ops) as claim.
+  rewrite claim in H_well_formed; iPureIntro; intros i x H_x.
+  enough (WTS: Operation.well_formed (u64_well_formed := fun _ => True) n x) by now red in WTS.
+  eapply H_well_formed; eapply SessionPrelude.lookup_In; eauto.
+Qed.
+
+Lemma pers_isOperation v op (n: nat)
+  : (isOperation v op n)%I ⊢@{iProp Σ} (<pers> (isOperation v op n))%I.
+Proof.
+  iIntros "#H"; done.
+Qed.
+
+Lemma pers_big_sepL2_isOperation vs ops (n: nat)
+  : ([∗ list] v;op ∈ vs;ops, isOperation v op n)%I ⊢@{iProp Σ} (<pers> ([∗ list] v;op ∈ vs;ops, isOperation v op n))%I.
+Proof.
+  iIntros "H_big_sepL2"; iApply (big_sepL2_persistently).
+  iApply (big_sepL2_mono (λ k, λ y1, λ y2, isOperation y1 y2 n)%I with "[$H_big_sepL2]").
+  intros; iIntros "#H"; done.
+Qed.
+
+Lemma pers_emp
+  : (emp)%I ⊢@{iProp Σ} (<pers> emp)%I.
+Proof.
+  iIntros "#H"; done.
+Qed.
+
+Lemma big_sepL2_isOperation_elim l ops (n: nat) (i: nat) l_i ops_i
+  (H_l_i: l !! i = Some l_i)
+  (H_ops_i: ops !! i = Some ops_i)
+  : ([∗ list] opv;o ∈ ops;l, isOperation opv o n)%I ⊢@{iProp Σ} (isOperation ops_i l_i n)%I.
+Proof.
+  rewrite <- take_drop with (l := l) (i := i); rewrite <- take_drop with (l := ops) (i := i); iIntros "H". 
+  assert (i < length l)%nat as H1_i by now eapply lookup_lt_is_Some_1.
+  assert (i < length ops)%nat as H2_i by now eapply lookup_lt_is_Some_1.  
+  iAssert (([∗ list] opv;o ∈ take i ops;take i l, isOperation opv o n) ∗ ([∗ list] opv;o ∈ drop i ops;drop i l, isOperation opv o n))%I with "[H]" as "[H1 H2]".
+  { iApply (big_sepL2_app_equiv with "H"); do 2 rewrite length_take; word. }
+  destruct (drop i ops) as [ | ops_i' ops_suffix] eqn: H_ops_suffix.
+  { apply f_equal with (f := length) in H_ops_suffix; simpl in *; rewrite length_drop in H_ops_suffix. word. }
+  iPoseProof (big_sepL2_cons_inv_l with "[$H2]") as "(%l_i' & %l_suffix & %H_l_suffix & H3 & H4)".
+  rewrite <- take_drop with (l := l) (i := i) in H_l_i; rewrite <- take_drop with (l := ops) (i := i) in H_ops_i.
+  rewrite H_l_suffix in H_l_i; rewrite H_ops_suffix in H_ops_i.
+  assert (i = length (take i l)) as H3_i.
+  { rewrite length_take; word. }
+  assert (i = length (take i ops)) as H4_i.
+  { rewrite length_take; word. }
+  pose proof (list_lookup_middle (take i l) l_suffix l_i' i H3_i) as EQ_l_i.
+  pose proof (list_lookup_middle (take i ops) ops_suffix ops_i' i H4_i) as EQ_ops_i.
+  assert (l_i = l_i' /\ ops_i = ops_i') as [<- <-] by now split; congruence.
+  iExact "H3".
+Qed.
+
+Lemma big_sepL2_isOperation_intro l ops n
+  (LENGTH: length l = length ops)
+  : (∀ i : nat, ∀ l_i, ∀ ops_i, ⌜(l !! i = Some l_i) /\ (ops !! i = Some ops_i)⌝ -∗ isOperation ops_i l_i n)%I ⊢@{iProp Σ} ([∗ list] opv;o ∈ ops;l, isOperation opv o n)%I.
+Proof.
+  revert ops n LENGTH; induction l as [ | l_hd l_tl IH], ops as [ | ops_hd ops_tl]; intros; simpl in *; try congruence.
+  - iIntros "#H"; iClear "H"; done.
+  - iIntros "#H"; iSplit.
+    + iApply "H"; instantiate (1 := 0%nat); done.
+    + iApply IH. { word. }
+      iIntros "%i %l_i %ops_i [%H_l_i %H_ops_i]"; iApply "H"; instantiate (1 := S i); done.
+Qed.
+
+Lemma big_sepL2_middle_split {A: Type} {B: Type} {Φ: A -> B -> iProp Σ} {xs: list A} {i: nat} {x0: A} (ys: list B)
+  (LOOKUP: xs !! i = Some x0)
+  : ([∗ list] x;y ∈ xs;ys, Φ x y)%I ⊢@{iProp Σ} (∃ y0, ∃ ys1, ∃ ys2, ⌜ys = (ys1 ++ y0 :: ys2)%list /\ length ys1 = i⌝ ∗ Φ x0 y0 ∗ ([∗ list] x;y ∈ take i xs;ys1, Φ x y) ∗ ([∗ list] x;y ∈ drop (i + 1)%nat xs;ys2, Φ x y))%I.
+Proof.
+  pose proof (take_drop_middle xs i x0 LOOKUP) as claim1.
+  assert (i < length xs)%nat as claim2.
+  { now eapply lookup_lt_is_Some_1. }
+  iIntros "H_big_sepL2".
+  iPoseProof (big_sepL2_length with "[$H_big_sepL2]") as "%LENGTH".
+  rewrite <- take_drop with (l := xs) (i := i).
+  rewrite <- take_drop with (l := ys) (i := i).
+  iPoseProof (big_sepL2_app_equiv with "H_big_sepL2") as "[H_prefix H_suffix]".
+  { (do 2 rewrite length_take); word. }
+  assert (is_Some (ys !! i)) as [y0 H_y0].
+  { eapply lookup_lt_is_Some_2; word. }
+  iExists y0; iExists (take i ys); iExists (drop (S i) ys).
+  pose proof (take_drop_middle ys i y0 H_y0) as claim3.
+  iSplitL "".
+  { iPureIntro; split; [rewrite claim3; eapply take_drop | rewrite length_take; word]. }
+  rewrite <- take_drop with (l := ys) (i := i) in claim3 at -1.
+  apply SessionPrelude.app_cancel_l in claim3; rewrite take_drop in claim3; rewrite <- claim3.
+  iPoseProof (big_sepL2_cons_inv_r with "[$H_suffix]") as "(%x0' & %xs2 & %EQ & H_middle & H_suffix)".
+  rewrite <- take_drop with (l := xs) (i := i) in claim1 at -1.
+  apply SessionPrelude.app_cancel_l in claim1; rewrite take_drop in claim1.
+  assert (x0' = x0) as -> by congruence.
+  iSplitL "H_middle".
+  { iExact "H_middle". }
+  rewrite take_drop; iSplitL "H_prefix".
+  { iExact "H_prefix". }
+  { rewrite <- drop_drop with (l := xs) (n1 := 1%nat) (n2 := i); rewrite -> EQ; iExact "H_suffix". }
+Qed.
+
+Lemma big_sepL2_middle_merge {A: Type} {B: Type} {Φ: A -> B -> iProp Σ} {xs: list A} {i: nat} {x0: A} (y0: B) (ys1: list B) (ys2: list B)
+  (LOOKUP: xs !! i = Some x0)
+  : (Φ x0 y0 ∗ ([∗ list] x;y ∈ take i xs;ys1, Φ x y) ∗ ([∗ list] x;y ∈ drop (i + 1)%nat xs;ys2, Φ x y))%I ⊢@{iProp Σ} ([∗ list] x;y ∈ xs;(ys1 ++ y0 :: ys2)%list, Φ x y)%I.
+Proof.
+  pose proof (take_drop_middle xs i x0 LOOKUP) as claim1.
+  assert (i < length xs)%nat as claim2.
+  { now eapply lookup_lt_is_Some_1. }
+  iIntros "(H_middle & H_prefix & H_suffix)".
+  replace ([∗ list] x;y ∈ xs;(ys1 ++ y0 :: ys2), Φ x y)%I with ([∗ list] x;y ∈ take i xs ++ x0 :: drop (S i) xs;(ys1 ++ y0 :: ys2), Φ x y)%I by now rewrite claim1.
+  rewrite <- drop_drop with (l := xs) (n1 := 1%nat) (n2 := i).
+  rewrite <- take_drop with (l := xs) (i := i) in claim1 at -1.
+  apply SessionPrelude.app_cancel_l in claim1; rewrite take_drop in claim1.
+  rewrite <- claim1; simpl; replace (drop 0 (drop (S i) xs)) with (drop (S i) xs) by reflexivity.
+  iApply (big_sepL2_app with "[$H_prefix] [H_middle H_suffix]"); simpl; iFrame.
 Qed.
 
 End heap.
