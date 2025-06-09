@@ -1,6 +1,7 @@
 (** ShouldBuild depends on everything that should be regularly compiled (by
 default using make as well as in CI). *)
 
+(* "----------------- useless -----------------"
 From Perennial.algebra Require ghost_async_map.
 
 From Perennial.goose_lang Require
@@ -16,7 +17,7 @@ From Perennial.goose_lang Require
 .
 
 From Perennial.goose_lang.ffi Require async_disk async_disk_equiv.
-(* "----------------- useless -----------------"
+
 From Perennial.program_proof Require
      lockmap_proof
      jrnl_replication.jrnl_replication_proof
