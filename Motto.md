@@ -9,7 +9,7 @@ $ git submodule update --init --recursive
 $ eval `opam env`
 $ make -j4 -k
 ```
-## COQC
+## `coqc -v`
 
 ```
 The Coq Proof Assistant, version 8.20.0
