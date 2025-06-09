@@ -4,11 +4,12 @@ Our fork of [mit-pdos/perennial](https://github.com/mit-pdos/perennial/commit/85
 
 ## Quick Start
 
+```shell
+git submodule update --init --recursive
+eval `opam env`
+make -j4 -k
 ```
-$ git submodule update --init --recursive
-$ eval `opam env`
-$ make -j4 -k
-```
+
 ## `coqc -v`
 
 ```
