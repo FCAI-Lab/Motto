@@ -19,7 +19,7 @@ compiled with OCaml 5.2.1
 
 ## Progress
 
-[v] session_prelude.v (1186 lines)
+[x] session_prelude.v (1186 lines)
 [ ] session_definitions.v
 
 ## Notable Changes
