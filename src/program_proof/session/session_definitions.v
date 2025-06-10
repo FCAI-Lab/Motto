@@ -14,9 +14,6 @@ Module SessionClient := Goose.session.client.
   lazymatch goal with [ v : tuple_of ?tv |- _ ] => unfold tuple_of in v; unfold tv in v; simpl in v; simpl SessionPrelude.value_of; do n destruct v as [v ?]; simpl end;
   repeat lazymatch goal with [ t : Slice.t |- _ ] => destruct t end; auto.
 
-Definition BOUND (a: Z) (n: nat) : Prop :=
-  a >= 1 /\ Z.of_nat n <= 2 ^ 64 - a.
-
 #[universes(template)]
 Class has_value_boundary (t: Type) : Type :=
   value_bound (a: Z) (object: t) : Prop.
@@ -29,23 +26,15 @@ Instance u64_has_value_boundary : has_value_boundary u64 :=
 
 #[global]
 Instance nat_has_value_boundary : has_value_boundary nat :=
-  BOUND.
+  fun a: Z => fun n: nat => a >= 1 /\ uint.Z n <= 2 ^ 64 - a.
 
-Lemma BOUND_dec a n
-  : {BOUND a n} + {~ BOUND a n}.
+Lemma u64_has_value_boundary_dec a n
+  : {u64_has_value_boundary a n} + {~ u64_has_value_boundary a n}.
 Proof.
-  unfold BOUND;
+  unfold u64_has_value_boundary;
   pose proof (Z.ge_dec a 1) as [YES_ge | NO_ge];
-  pose proof (Z.le_dec (Z.of_nat n) (2 ^ 64 - a)) as [YES_le | NO_le];
+  pose proof (Z.le_dec (uint.Z n) (2 ^ 64 - a)) as [YES_le | NO_le];
   first [now left; split | right; word].
-Qed.
-
-Lemma maybe_u64 (a: Z) (n: nat)
-  : { RET : option u64 | match RET with Some v => value_bound a n /\ uint.nat v = n | None => ~ value_bound a n end }.
-Proof.
-  pose proof (BOUND_dec a n) as [YES | NO].
-  - red in YES; exists (Some (W64 n)); split; trivial; word.
-  - exists None; trivial.
 Qed.
 
 #[global]
@@ -477,54 +466,57 @@ Module ServerSide.
 
   Section heap.
 
-    Context `{hG: !heapGS Σ}.
+  Context `{hG: !heapGS Σ}.
 
-    Definition isOperation (v: tuple_of Operation.tv) (op: Operation.t nat) (n: nat) : iProp Σ :=
-      ∃ object, ⌜Operation.FMap u64 nat (fun u : u64 => uint.nat u) object = op⌝ ∗
-      own_slice_small v!(0) uint64T DfracDiscarded object.(Operation.VersionVector) ∗
-      ⌜v!(1) = object.(Operation.Data)⌝ ∗
-      ⌜Operation.size_of op = n⌝.
+  #[local] Notation operation := (Operation.t u64).
+  #[local] Notation operationList := (list operation).
+  #[local] Notation message := (Message.t u64).
+  #[local] Notation messageList := (list message).
+  #[local] Notation server := (Server.t u64).
 
-    Definition isOperationSlice (s: Slice.t) (ops: list (Operation.t nat)) (n: nat) : iProp Σ :=
-      ∃ vs, own_slice s (struct.t Operation) (DfracOwn 1) vs ∗ [∗ list] v;op ∈ vs;ops, isOperation v op n.
+  Definition isOperation (v: tuple_of Operation.tv) (op: operation) (n: nat) : iProp Σ :=
+    own_slice_small v!(0) uint64T DfracDiscarded op.(Operation.VersionVector) ∗
+    ⌜v!(1) = op.(Operation.Data)⌝ ∗
+    ⌜Operation.size_of op = n⌝.
 
-    Definition isMessage (v: tuple_of Message.tv) (msg: Message.t nat) (n: nat) (len_c2s: nat) (len_s2c: nat) : iProp Σ :=
-      ∃ object, ⌜Message.FMap u64 nat (fun u : u64 => uint.nat u) object = msg⌝ ∗
-      ⌜v!(0) = object.(Message.MessageType)⌝ ∗
-      ⌜v!(1) = object.(Message.C2S_Client_Id)⌝ ∗
-      ⌜v!(2) = object.(Message.C2S_Server_Id)⌝ ∗
-      ⌜v!(3) = object.(Message.C2S_Client_OperationType)⌝ ∗
-      ⌜v!(4) = object.(Message.C2S_Client_Data)⌝ ∗
-      own_slice_small v!(5) uint64T (DfracOwn 1) object.(Message.C2S_Client_VersionVector) ∗
-      ⌜len_c2s = length object.(Message.C2S_Client_VersionVector)⌝ ∗
-      ⌜v!(6) = object.(Message.S2S_Gossip_Sending_ServerId)⌝ ∗
-      ⌜v!(7) = object.(Message.S2S_Gossip_Receiving_ServerId)⌝ ∗
-      isOperationSlice v!(8) msg.(Message.S2S_Gossip_Operations) n ∗
-      ⌜v!(9) = object.(Message.S2S_Gossip_Index)⌝ ∗
-      ⌜v!(10) = object.(Message.S2S_Acknowledge_Gossip_Sending_ServerId)⌝ ∗
-      ⌜v!(11) = object.(Message.S2S_Acknowledge_Gossip_Receiving_ServerId)⌝ ∗
-      ⌜v!(12) = object.(Message.S2S_Acknowledge_Gossip_Index)⌝ ∗
-      ⌜v!(13) = object.(Message.S2C_Client_OperationType)⌝ ∗
-      ⌜v!(14) = object.(Message.S2C_Client_Data)⌝ ∗
-      own_slice_small v!(15) uint64T (DfracOwn 1) object.(Message.S2C_Client_VersionVector) ∗
-      ⌜v!(16) = object.(Message.S2C_Server_Id)⌝ ∗
-      ⌜v!(17) = object.(Message.S2C_Client_Number)⌝ ∗
-      ⌜Message.size_of msg = (len_c2s, len_s2c)⌝.
+  Definition isOperationSlice (s: Slice.t) (ops: operationList) (n: nat) : iProp Σ :=
+    ∃ vs, own_slice s (struct.t Operation) (DfracOwn 1) vs ∗ [∗ list] v;op ∈ vs;ops, isOperation v op n.
 
-    Definition isMessageSlice (s: Slice.t) (msgs: list (Message.t nat)) (n: nat) (len_c2s: nat) : iProp Σ :=
-      ∃ vs, own_slice s (struct.t Message) (DfracOwn 1) vs ∗ [∗ list] v;msg ∈ vs;msgs, ∃ len_s2c : nat, isMessage v msg n len_c2s len_s2c.
+  Definition isMessage (v: tuple_of Message.tv) (msg: message) (n: nat) (len_c2s: nat) (len_s2c: nat) : iProp Σ :=
+    ⌜v!(0) = msg.(Message.MessageType)⌝ ∗
+    ⌜v!(1) = msg.(Message.C2S_Client_Id)⌝ ∗
+    ⌜v!(2) = msg.(Message.C2S_Server_Id)⌝ ∗
+    ⌜v!(3) = msg.(Message.C2S_Client_OperationType)⌝ ∗
+    ⌜v!(4) = msg.(Message.C2S_Client_Data)⌝ ∗
+    own_slice_small v!(5) uint64T (DfracOwn 1) msg.(Message.C2S_Client_VersionVector) ∗
+    ⌜len_c2s = length msg.(Message.C2S_Client_VersionVector)⌝ ∗
+    ⌜v!(6) = msg.(Message.S2S_Gossip_Sending_ServerId)⌝ ∗
+    ⌜v!(7) = msg.(Message.S2S_Gossip_Receiving_ServerId)⌝ ∗
+    isOperationSlice v!(8) msg.(Message.S2S_Gossip_Operations) n ∗
+    ⌜v!(9) = msg.(Message.S2S_Gossip_Index)⌝ ∗
+    ⌜v!(10) = msg.(Message.S2S_Acknowledge_Gossip_Sending_ServerId)⌝ ∗
+    ⌜v!(11) = msg.(Message.S2S_Acknowledge_Gossip_Receiving_ServerId)⌝ ∗
+    ⌜v!(12) = msg.(Message.S2S_Acknowledge_Gossip_Index)⌝ ∗
+    ⌜v!(13) = msg.(Message.S2C_Client_OperationType)⌝ ∗
+    ⌜v!(14) = msg.(Message.S2C_Client_Data)⌝ ∗
+    own_slice_small v!(15) uint64T (DfracOwn 1) msg.(Message.S2C_Client_VersionVector) ∗
+    ⌜v!(16) = msg.(Message.S2C_Server_Id)⌝ ∗
+    ⌜v!(17) = msg.(Message.S2C_Client_Number)⌝ ∗
+    ⌜Message.size_of msg = (len_c2s, len_s2c)⌝.
 
-    Definition isServer' {OWN_UnsatisfiedRequests: bool} (v: tuple_of Server.tv) (server: Server.t nat) (n: nat) (len_vc: nat) (len_op: nat) (len_mo: nat) (len_po: nat) (len_ga: nat) : iProp Σ :=
-      ∃ object, ⌜Server.FMap u64 nat (fun u : u64 => uint.nat u) object = server⌝ ∗
-      ⌜v!(0) = object.(Server.Id)⌝ ∗
-      ⌜v!(1) = object.(Server.NumberOfServers)⌝ ∗
-      (if OWN_UnsatisfiedRequests then isMessageSlice v!(2) server.(Server.UnsatisfiedRequests) n len_vc else emp)%I ∗
-      own_slice_small v!(3) uint64T (DfracOwn 1) object.(Server.VectorClock) ∗
-      isOperationSlice v!(4) server.(Server.OperationsPerformed) len_op ∗
-      isOperationSlice v!(5) server.(Server.MyOperations) len_mo ∗
-      isOperationSlice v!(6) server.(Server.PendingOperations) len_po ∗
-      own_slice_small v!(7) uint64T (DfracOwn 1) object.(Server.GossipAcknowledgements) ∗
-      ⌜Server.size_of server = (len_vc, len_op, len_mo, len_po, len_ga)⌝.
+  Definition isMessageSlice (s: Slice.t) (msgs: messageList) (n: nat) (len_c2s: nat) : iProp Σ :=
+    ∃ vs, own_slice s (struct.t Message) (DfracOwn 1) vs ∗ [∗ list] v;msg ∈ vs;msgs, ∃ len_s2c : nat, isMessage v msg n len_c2s len_s2c.
+
+  Definition isServer' {OWN_UnsatisfiedRequests: bool} (v: tuple_of Server.tv) (server: server) (n: nat) (len_vc: nat) (len_op: nat) (len_mo: nat) (len_po: nat) (len_ga: nat) : iProp Σ :=
+    ⌜v!(0) = server.(Server.Id)⌝ ∗
+    ⌜v!(1) = server.(Server.NumberOfServers)⌝ ∗
+    (if OWN_UnsatisfiedRequests then isMessageSlice v!(2) server.(Server.UnsatisfiedRequests) n len_vc else emp)%I ∗
+    own_slice_small v!(3) uint64T (DfracOwn 1) server.(Server.VectorClock) ∗
+    isOperationSlice v!(4) server.(Server.OperationsPerformed) len_op ∗
+    isOperationSlice v!(5) server.(Server.MyOperations) len_mo ∗
+    isOperationSlice v!(6) server.(Server.PendingOperations) len_po ∗
+    own_slice_small v!(7) uint64T (DfracOwn 1) server.(Server.GossipAcknowledgements) ∗
+    ⌜Server.size_of server = (len_vc, len_op, len_mo, len_po, len_ga)⌝.
 
   End heap.
 
@@ -532,48 +524,50 @@ Module ServerSide.
 
   Section Coq_nat.
 
-  #[local] Open Scope nat_scope.
+  #[local] Notation Operation := (Operation.t u64).
+  #[local] Notation Message := (Message.t u64).
+  #[local] Notation Server := (Server.t u64).
 
-  Fixpoint coq_compareVersionVector (v1: list nat) (v2: list nat) : bool :=
+  Fixpoint coq_compareVersionVector (v1: list u64) (v2: list u64) : bool :=
     match v1 with
     | [] => true
     | h1 :: t1 =>
       match v2 with
       | [] => true
-      | h2 :: t2 => (h2 <=? h1)%nat && (coq_compareVersionVector t1 t2)
+      | h2 :: t2 => if uint.Z h1 <? uint.Z h2 then false else coq_compareVersionVector t1 t2
       end
     end.
 
-  Fixpoint coq_lexicographicCompare (v1: list nat) (v2: list nat) : bool :=
+  Fixpoint coq_lexicographicCompare (v1: list u64) (v2: list u64) : bool :=
     match v1 with
     | [] => false
     | h1 :: t1 =>
       match v2 with
       | [] => false
-      | h2 :: t2 => if (h1 =? h2)%nat then coq_lexicographicCompare t1 t2 else (h2 <? h1)%nat
+      | h2 :: t2 => if uint.Z h1 =? uint.Z h2 then coq_lexicographicCompare t1 t2 else uint.Z h1 >? uint.Z h2
       end
     end.
 
-  Definition coq_maxTwoInts (x: nat) (y: nat) : nat :=
-    Nat.max x y.
+  Definition coq_maxTwoInts (x: u64) (y: u64) : u64 :=
+    if uint.Z x >? uint.Z y then x else y. 
 
-  Fixpoint coq_maxTS (v1: list nat) (v2: list nat) : list nat :=
-    match v1 with
+  Fixpoint coq_maxTS (t1: list u64) (t2: list u64) : list u64 :=
+    match t1 with
     | [] => []
     | hd1 :: tl1 =>
-      match v2 with
+      match t2 with
       | [] => []
       | hd2 :: tl2 => coq_maxTwoInts hd1 hd2 :: coq_maxTS tl1 tl2
       end
     end.
 
-  Definition coq_oneOffVersionVector (v1: list nat) (v2: list nat) : bool :=
-    let loop_step (acc: bool * bool) (elem: nat * nat) : bool * bool :=
-      let (e1, e2) := elem in
+  Definition coq_oneOffVersionVector (v1: list u64) (v2: list u64) : bool :=
+    let loop_step (acc: bool * bool) (element: u64 * u64) : bool * bool :=
+      let (e1, e2) := element in
       let (output, canApply) := acc in
-      if canApply && (e1 + 1 =? e2)%nat then
+      if canApply && (uint.Z (w64_word_instance.(word.add) e1 (W64 1)) =? uint.Z e2) then
         (output, false)
-      else if (e2 <=? e1)%nat then
+      else if uint.Z e1 >=? uint.Z e2 then
         (output, canApply)
       else 
         (false, canApply)
@@ -581,25 +575,25 @@ Module ServerSide.
     let (output, canApply) := fold_left loop_step (zip v1 v2) (true, true) in
     output && negb canApply.
 
-  Fixpoint coq_equalSlices (s1: list nat) (s2: list nat) : bool :=
+  Fixpoint coq_equalSlices (s1: list u64) (s2: list u64) : bool :=
     match s1 with
     | [] => true
     | h1 :: t1 =>
       match s2 with
       | [] => true
-      | h2 :: t2 => (h1 =? h2)%nat && coq_equalSlices t1 t2
+      | h2 :: t2 => if negb (uint.Z h1 =? uint.Z h2) then false else coq_equalSlices t1 t2
       end
     end.
 
-  Variant binarySearch_spec (needle: Operation.t nat) (l: list (Operation.t nat)) (n: nat) (RESULT: nat) : Prop :=
-    | binarySearch_spec_intro (prefix: list (list nat)) (suffix: list (list nat))
+  Variant binarySearch_spec (needle: Operation) (l: list Operation) (n: nat) (RESULT: nat) : Prop :=
+    | binarySearch_spec_intro (prefix: list (list u64)) (suffix: list (list u64))
       (LENGTH: RESULT = length prefix)
       (VECTOR: map Operation.getVersionVector l = if forallb (fun x => negb (coq_equalSlices x.(Operation.VersionVector) needle.(Operation.VersionVector))) l then prefix ++ suffix else prefix ++ [Operation.getVersionVector needle] ++ suffix)
       (PREFIX: ∀ op, In op prefix -> coq_lexicographicCompare needle.(Operation.VersionVector) op = true)
       (SUFFIX: ∀ op, In op suffix -> coq_lexicographicCompare op needle.(Operation.VersionVector) = true)
       : binarySearch_spec needle l n RESULT.
 
-  Fixpoint coq_sortedInsert (l: list (Operation.t nat)) (i: Operation.t nat) : list (Operation.t nat) :=
+  Fixpoint coq_sortedInsert (l: list Operation) (i: Operation) : list Operation :=
     match l with
     | [] => [i]
     | h :: t =>
@@ -611,25 +605,19 @@ Module ServerSide.
         h :: coq_sortedInsert t i
     end.
 
-  Definition coq_deleteAtIndexOperation (ops: list (Operation.t nat)) (index: nat) : list (Operation.t nat) :=
-    take index ops ++ drop (index + 1)%nat ops.
-
-  Definition coq_deleteAtIndexMessage (msgs: list (Message.t nat)) (index: nat) : list (Message.t nat) :=
-    take index msgs ++ drop (index + 1)%nat msgs.
-
-  Definition coq_getDataFromOperationLog (l: list (Operation.t nat)) : _Data.t :=
+  Definition coq_getDataFromOperationLog (l: list Operation) : u64 :=
     match last l with
     | Some v => v.(Operation.Data)
-    | None => IntoVal_def _Data.t
+    | None => W64 0
     end.
 
-  Definition coq_receiveGossip (server: Server.t nat) (request: Message.t nat) : Server.t nat :=
+  Definition coq_receiveGossip (server: Server) (request: Message) : Server :=
     if (length request.(Message.S2S_Gossip_Operations) =? 0)%nat then
       server
     else
-      let first_loop_output : Server.t nat :=
+      let first_loop_output : Server :=
         let focus := request.(Message.S2S_Gossip_Operations) in
-        let loop_step (acc: Server.t nat) (elem: Operation.t nat) : Server.t nat :=
+        let loop_step (acc: Server) (elem: Operation) : Server :=
           let server := acc in
           if coq_oneOffVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector) then
             {|
@@ -659,24 +647,24 @@ Module ServerSide.
         fold_left loop_step focus server
       in
       let server := first_loop_output in
-      let second_loop_output : Server.t nat * nat * list nat :=
+      let second_loop_output : Server * u64 * list u64 :=
         let focus := server.(Server.PendingOperations) in
-        let loop_step (acc: Server.t nat * nat * list nat) (elem: Operation.t nat) : Server.t nat * nat * list nat :=
+        let loop_step (acc: Server * u64 * list u64) (elem: Operation) : Server * u64 * list u64 :=
           let '(server, i, seen) := acc in
             if coq_oneOffVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector) then
-              (Server.mk nat server.(Server.Id) server.(Server.NumberOfServers) server.(Server.UnsatisfiedRequests) (coq_maxTS server.(Server.VectorClock) elem.(Operation.VersionVector)) (coq_sortedInsert server.(Server.OperationsPerformed) elem) server.(Server.MyOperations) server.(Server.PendingOperations) server.(Server.GossipAcknowledgements), (i + 1)%nat, seen ++ [i])
+              (Server.mk u64 server.(Server.Id) server.(Server.NumberOfServers) server.(Server.UnsatisfiedRequests) (coq_maxTS server.(Server.VectorClock) elem.(Operation.VersionVector)) (coq_sortedInsert server.(Server.OperationsPerformed) elem) server.(Server.MyOperations) server.(Server.PendingOperations) server.(Server.GossipAcknowledgements), W64 (uint.Z i + 1), seen ++ [i])
             else
-              (server, (i + 1)%nat, seen)
+              (server, W64 (uint.Z i + 1), seen)
         in
-        fold_left loop_step focus (server, 0%nat, [])
+        fold_left loop_step focus (server, W64 0, [])
       in
       let '(server, _, seen) := second_loop_output in
-      let third_loop_output : nat * nat * list (Operation.t nat) :=
+      let third_loop_output : nat * nat * list Operation :=
         let focus := server.(Server.PendingOperations) in
-        let loop_step (acc: nat * nat * list (Operation.t nat)) (elem: Operation.t nat) : nat * nat * list (Operation.t nat) :=
+        let loop_step (acc: nat * nat * list Operation) (elem: Operation) : nat * nat * list Operation :=
           let '(i, j, output) := acc in
           match seen !! j with
-          | Some i' => if (i =? i')%nat then ((i + 1)%nat, (j + 1)%nat, output) else ((i + 1)%nat, j, output ++ [elem])
+          | Some i' => if (i =? uint.nat i')%nat then ((i + 1)%nat, (j + 1)%nat, output) else ((i + 1)%nat, j, output ++ [elem])
           | None => ((i + 1)%nat, j, output ++ [elem])
           end
         in
@@ -694,72 +682,72 @@ Module ServerSide.
         Server.GossipAcknowledgements := server.(Server.GossipAcknowledgements);
       |}.
 
-  Definition coq_acknowledgeGossip (s: Server.t nat) (r: Message.t nat) : Server.t nat :=
-    let i := r.(Message.S2S_Acknowledge_Gossip_Sending_ServerId) in
+  Definition coq_acknowledgeGossip (s: Server) (r: Message) : Server :=
+    let i := uint.nat (r.(Message.S2S_Acknowledge_Gossip_Sending_ServerId)) in
     let l := s.(Server.GossipAcknowledgements) in
-    if (i <? length l)%nat then
-      let prevGossipAcknowledgementsValue : nat :=
+    if (i >=? length l)%nat then
+      s
+    else
+      let prevGossipAcknowledgementsValue : u64 :=
         match s.(Server.GossipAcknowledgements) !! i with
         | Some x => x
-        | None => 0%nat
+        | None => W64 0
         end
       in
       let newGossipAcknowledgements := coq_maxTwoInts prevGossipAcknowledgementsValue r.(Message.S2S_Acknowledge_Gossip_Index) in
       let gossipAcknowledgements := <[i := newGossipAcknowledgements]> l in
-      Server.mk nat s.(Server.Id) s.(Server.NumberOfServers) s.(Server.UnsatisfiedRequests) s.(Server.VectorClock) s.(Server.OperationsPerformed) s.(Server.MyOperations) s.(Server.PendingOperations) gossipAcknowledgements
-    else
-      s.
+      Server.mk u64 s.(Server.Id) s.(Server.NumberOfServers) s.(Server.UnsatisfiedRequests) s.(Server.VectorClock) s.(Server.OperationsPerformed) s.(Server.MyOperations) s.(Server.PendingOperations) gossipAcknowledgements.
 
-  Definition coq_getGossipOperations (s: Server.t nat) (serverId: nat) : list (Operation.t nat) :=
-    match s.(Server.GossipAcknowledgements) !! serverId with
-    | Some v => drop v s.(Server.MyOperations)
+  Definition coq_getGossipOperations (s: Server) (serverId: u64) : list Operation :=
+    match s.(Server.GossipAcknowledgements) !! uint.nat serverId with
+    | Some v => drop (uint.nat v) s.(Server.MyOperations)
     | None => []
     end.
 
-  Definition coq_processClientRequest (s: Server.t nat) (r: Message.t nat) : bool * Server.t nat * Message.t nat :=
-    if coq_compareVersionVector s.(Server.VectorClock) r.(Message.C2S_Client_VersionVector) then
-      if (r.(Message.C2S_Client_OperationType) =? 0)%nat then
+  Definition coq_processClientRequest (s: Server) (r: Message) : bool * Server * Message :=
+    if negb (coq_compareVersionVector s.(Server.VectorClock) r.(Message.C2S_Client_VersionVector)) then
+      (false, s, Message.mk u64 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
+    else
+      if uint.Z r.(Message.C2S_Client_OperationType) =? 0 then
         let S2C_Client_Data := coq_getDataFromOperationLog s.(Server.OperationsPerformed) in
         let S2C_Client_VersionVector := s.(Server.VectorClock) in
         let S2C_Client_Number := r.(Message.C2S_Client_Id) in
         let S2C_Server_Id := s.(Server.Id) in
-        (true, s, Message.mk nat 4 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 S2C_Client_Data S2C_Client_VersionVector S2C_Server_Id S2C_Client_Number)
+        (true, s, Message.mk u64 4 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 S2C_Client_Data S2C_Client_VersionVector S2C_Server_Id S2C_Client_Number)
       else
-        let v := match s.(Server.VectorClock) !! s.(Server.Id) with Some v => v | None => 0 end in
-        let VectorClock := <[s.(Server.Id) := (v + 1)%nat]> s.(Server.VectorClock) in
-        let OperationsPerformed := coq_sortedInsert s.(Server.OperationsPerformed) (Operation.mk nat VectorClock r.(Message.C2S_Client_Data)) in
-        let MyOperations := coq_sortedInsert s.(Server.MyOperations) (Operation.mk nat VectorClock r.(Message.C2S_Client_Data)) in
+        let v := match s.(Server.VectorClock) !! uint.nat s.(Server.Id) with Some v => uint.Z v | None => 0 end in
+        let VectorClock := <[uint.nat s.(Server.Id) := W64 (v + 1)]> s.(Server.VectorClock) in
+        let OperationsPerformed := coq_sortedInsert s.(Server.OperationsPerformed) (Operation.mk u64 VectorClock r.(Message.C2S_Client_Data)) in
+        let MyOperations := coq_sortedInsert s.(Server.MyOperations) (Operation.mk u64 VectorClock r.(Message.C2S_Client_Data)) in
         let S2C_Client_OperationType := 1 in
-        let S2C_Client_Data := IntoVal_def _Data.t in
+        let S2C_Client_Data := (IntoVal_def _Data.t) in
         let S2C_Client_VersionVector := VectorClock in
         let S2C_Client_Number := r.(Message.C2S_Client_Id) in
         let S2C_Server_Id := s.(Server.Id) in
-        (true, Server.mk nat s.(Server.Id) s.(Server.NumberOfServers) s.(Server.UnsatisfiedRequests) VectorClock OperationsPerformed MyOperations s.(Server.PendingOperations) s.(Server.GossipAcknowledgements), Message.mk nat 4 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 1 S2C_Client_Data S2C_Client_VersionVector S2C_Server_Id S2C_Client_Number)
-    else
-      (false, s, Message.mk nat 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0).
+        (true, Server.mk u64 s.(Server.Id) s.(Server.NumberOfServers) s.(Server.UnsatisfiedRequests) VectorClock OperationsPerformed MyOperations s.(Server.PendingOperations) s.(Server.GossipAcknowledgements), Message.mk u64 4 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 1 S2C_Client_Data S2C_Client_VersionVector S2C_Server_Id S2C_Client_Number).
 
-  Definition coq_processRequest (server: Server.t nat) (request: Message.t nat) : Server.t nat * list (Message.t nat) :=
-    match request.(Message.MessageType) with
+  Definition coq_processRequest (server: Server) (request: Message) : Server * list Message :=
+    match uint.nat request.(Message.MessageType) with
     | 0%nat =>
       let '(succeeded, server, reply) := coq_processClientRequest server request in
       if succeeded then
         (server, [reply])
       else
         let UnsatisfiedRequests := server.(Server.UnsatisfiedRequests) ++ [request] in 
-        let server := Server.mk nat server.(Server.Id) server.(Server.NumberOfServers) UnsatisfiedRequests server.(Server.VectorClock) server.(Server.OperationsPerformed) server.(Server.MyOperations) server.(Server.PendingOperations) server.(Server.GossipAcknowledgements) in
+        let server := Server.mk u64 server.(Server.Id) server.(Server.NumberOfServers) UnsatisfiedRequests server.(Server.VectorClock) server.(Server.OperationsPerformed) server.(Server.MyOperations) server.(Server.PendingOperations) server.(Server.GossipAcknowledgements) in
         (server, [])
     | 1%nat =>
       let server := coq_receiveGossip server request in
       let focus := server.(Server.UnsatisfiedRequests) in
-      let loop_init : nat * Server.t nat * list (Message.t nat) :=
+      let loop_init : nat * Server * list Message :=
         (0%nat, server, [])
       in
-      let loop_step (acc: nat * Server.t nat * list (Message.t nat)) (element: Message.t nat) : nat * Server.t nat * list (Message.t nat) :=
+      let loop_step (acc: nat * Server * list Message) (element: Message) : nat * Server * list Message :=
         let '(i, s, outGoingRequests) := acc in
         let '(succeeded, s, reply) := coq_processClientRequest s element in
         if succeeded then
-          let UnsatisfiedRequests := coq_deleteAtIndexMessage s.(Server.UnsatisfiedRequests) i in
-          (i, Server.mk nat s.(Server.Id) s.(Server.NumberOfServers) UnsatisfiedRequests s.(Server.VectorClock) s.(Server.OperationsPerformed) s.(Server.MyOperations) s.(Server.PendingOperations) s.(Server.GossipAcknowledgements), outGoingRequests ++ [reply])
+          let UnsatisfiedRequests := SessionPrelude.deleteAt s.(Server.UnsatisfiedRequests) i in
+          (i, Server.mk u64 s.(Server.Id) s.(Server.NumberOfServers) UnsatisfiedRequests s.(Server.VectorClock) s.(Server.OperationsPerformed) s.(Server.MyOperations) s.(Server.PendingOperations) s.(Server.GossipAcknowledgements), outGoingRequests ++ [reply])
         else
           ((i + 1)%nat, s, outGoingRequests)
       in
@@ -767,21 +755,24 @@ Module ServerSide.
       (server, outGoingRequests)
     | 2%nat => (coq_acknowledgeGossip server request, [])
     | 3%nat =>
-      let loop_step (acc: Server.t nat * list (Message.t nat)) (index: nat) : Server.t nat * list (Message.t nat) :=
+      let loop_step (acc: Server * list Message) (index: u64) : Server * list Message :=
         let '(server, outGoingRequests) := acc in
         let operations := coq_getGossipOperations server index in
-        if negb (index =? server.(Server.Id))%nat && negb (length operations =? 0)%nat then
-          let GossipAcknowledgements := <[index := length server.(Server.MyOperations)]> server.(Server.GossipAcknowledgements) in
+        if negb (uint.nat index =? uint.nat server.(Server.Id))%nat && negb (length operations =? 0)%nat then
+          let GossipAcknowledgements := <[uint.nat index := W64 (length server.(Server.MyOperations))]> server.(Server.GossipAcknowledgements) in
           let S2S_Gossip_Sending_ServerId := server.(Server.Id) in
           let S2S_Gossip_Receiving_ServerId := index in
           let S2S_Gossip_Operations := operations in
           let S2S_Gossip_Index := length (server.(Server.MyOperations)) in
-          let message := Message.mk nat 1 0 0 0 (IntoVal_def _Data.t) [] S2S_Gossip_Sending_ServerId S2S_Gossip_Receiving_ServerId S2S_Gossip_Operations S2S_Gossip_Index 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 in
-          (Server.mk nat server.(Server.Id) server.(Server.NumberOfServers) server.(Server.UnsatisfiedRequests) server.(Server.VectorClock) server.(Server.OperationsPerformed) server.(Server.MyOperations) server.(Server.PendingOperations) GossipAcknowledgements, outGoingRequests ++ [message])
+          let message := Message.mk u64 1 0 0 0 (IntoVal_def _Data.t) [] S2S_Gossip_Sending_ServerId S2S_Gossip_Receiving_ServerId S2S_Gossip_Operations S2S_Gossip_Index 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 in
+          (Server.mk u64 server.(Server.Id) server.(Server.NumberOfServers) server.(Server.UnsatisfiedRequests) server.(Server.VectorClock) server.(Server.OperationsPerformed) server.(Server.MyOperations) server.(Server.PendingOperations) GossipAcknowledgements, outGoingRequests ++ [message])
         else
           (server, outGoingRequests)
       in
-      let focus := seq 0%nat server.(Server.NumberOfServers) in
+      let nat_to_u64 (i: nat) : u64 :=
+        W64 i
+      in
+      let focus := map nat_to_u64 (seq 0%nat (uint.nat server.(Server.NumberOfServers))) in
       fold_left loop_step focus (server, [])
     | _ => (server, [])
     end.
@@ -830,56 +821,63 @@ Module ClientSide.
 
   Context `{hG: !heapGS Σ}.
 
-  Definition Client_u64 (v: tuple_of Client.tv) (client: Client.t nat) (n: nat) : iProp Σ :=
-    ∃ object, ⌜Client.FMap u64 nat (fun u : u64 => uint.nat u) object = client⌝ ∗
-    ⌜v!(0) = object.(Client.Id)⌝ ∗
-    ⌜v!(1) = object.(Client.NumberOfServers)⌝ ∗
-    own_slice_small v!(2) uint64T (DfracOwn 1) object.(Client.WriteVersionVector) ∗
-    own_slice_small v!(3) uint64T (DfracOwn 1) object.(Client.ReadVersionVector) ∗
-    ⌜v!(4) = object.(Client.SessionSemantic)⌝ ∗
+  #[local] Notation operation := (Operation.t u64).
+  #[local] Notation operationList := (list operation).
+  #[local] Notation message := (Message.t u64).
+  #[local] Notation messageList := (list message).
+  #[local] Notation client := (Client.t u64).
+
+  Definition Client_u64 (v: tuple_of Client.tv) (client: client) (n: nat) : iProp Σ :=
+    ⌜v!(0) = client.(Client.Id)⌝ ∗
+    ⌜v!(1) = client.(Client.NumberOfServers)⌝ ∗
+    own_slice_small v!(2) uint64T (DfracOwn 1) client.(Client.WriteVersionVector) ∗
+    own_slice_small v!(3) uint64T (DfracOwn 1) client.(Client.ReadVersionVector) ∗
+    ⌜v!(4) = client.(Client.SessionSemantic)⌝ ∗
     ⌜(Client.size_of client, uint.nat client.(Client.NumberOfServers)) = (n, n, n)⌝.
 
   End heap.
 
   Section Coq_nat.
 
-  #[local] Open Scope nat_scope.
-
   Import ServerSide.
 
-  Definition coq_read (c: Client.t nat) (serverId: nat) : Message.t nat :=
-    match c.(Client.SessionSemantic) with
-    | 0%nat => Message.mk nat 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) (replicate c.(Client.NumberOfServers) 0) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 1%nat => Message.mk nat 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) (replicate c.(Client.NumberOfServers) 0) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 2%nat => Message.mk nat 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) (replicate c.(Client.NumberOfServers) 0) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 3%nat => Message.mk nat 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) c.(Client.ReadVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 4%nat => Message.mk nat 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) c.(Client.WriteVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 5%nat => Message.mk nat 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) (coq_maxTS c.(Client.WriteVersionVector) c.(Client.ReadVersionVector)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | _ => Message.mk nat 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+  #[local] Notation Operation := (Operation.t u64).
+  #[local] Notation Message := (Message.t u64).
+  #[local] Notation Client := (Client.t u64).
+
+  Definition coq_read (c: Client) (serverId: u64) : Message :=
+    match uint.nat c.(Client.SessionSemantic) with
+    | 0%nat => Message.mk u64 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | 1%nat => Message.mk u64 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | 2%nat => Message.mk u64 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | 3%nat => Message.mk u64 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) c.(Client.ReadVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | 4%nat => Message.mk u64 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) c.(Client.WriteVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | 5%nat => Message.mk u64 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) (coq_maxTS c.(Client.WriteVersionVector) c.(Client.ReadVersionVector)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | _ => Message.mk u64 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
     end.
 
-  Definition coq_write (c: Client.t nat) (serverId: nat) (value: _Data.t) : Message.t nat :=
-    match c.(Client.SessionSemantic) with
-    | 0%nat => Message.mk nat 0 c.(Client.Id) serverId 1 value (replicate c.(Client.NumberOfServers) 0) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 1%nat => Message.mk nat 0 c.(Client.Id) serverId 1 value (replicate c.(Client.NumberOfServers) 0) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 2%nat => Message.mk nat 0 c.(Client.Id) serverId 1 value (replicate c.(Client.NumberOfServers) 0) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 3%nat => Message.mk nat 0 c.(Client.Id) serverId 1 value c.(Client.ReadVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 4%nat => Message.mk nat 0 c.(Client.Id) serverId 1 value c.(Client.WriteVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 5%nat => Message.mk nat 0 c.(Client.Id) serverId 1 value (coq_maxTS c.(Client.WriteVersionVector) c.(Client.ReadVersionVector)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | _ => Message.mk nat 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+  Definition coq_write (c: Client) (serverId: u64) (value: u64) : Message :=
+    match uint.nat c.(Client.SessionSemantic) with
+    | 0%nat => Message.mk u64 0 c.(Client.Id) serverId 1 value (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | 1%nat => Message.mk u64 0 c.(Client.Id) serverId 1 value c.(Client.ReadVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | 2%nat => Message.mk u64 0 c.(Client.Id) serverId 1 value c.(Client.WriteVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | 3%nat => Message.mk u64 0 c.(Client.Id) serverId 1 value (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | 4%nat => Message.mk u64 0 c.(Client.Id) serverId 1 value (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | 5%nat => Message.mk u64 0 c.(Client.Id) serverId 1 value (coq_maxTS c.(Client.WriteVersionVector) c.(Client.ReadVersionVector)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | _ => Message.mk u64 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
     end.
 
-  Definition coq_processRequest (c: Client.t nat) (requestType: nat) (serverId: nat) (value: _Data.t) (ackMessage: Message.t nat) : Client.t nat * Message.t nat :=
-    match requestType with
+  Definition coq_processRequest (c: Client) (requestType: u64) (serverId: u64) (value: u64) (ackMessage: Message) : Client * Message :=
+    match uint.nat requestType with
     | 0%nat => (c, coq_read c serverId)
     | 1%nat => (c, coq_write c serverId value)
     | 2%nat =>
-      match ackMessage.(Message.S2C_Client_OperationType) with
-      | 0%nat => (Client.mk nat c.(Client.Id) c.(Client.NumberOfServers) c.(Client.WriteVersionVector) ackMessage.(Message.S2C_Client_VersionVector) c.(Client.SessionSemantic), Message.mk nat 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
-      | 1%nat => (Client.mk nat c.(Client.Id) c.(Client.NumberOfServers) ackMessage.(Message.S2C_Client_VersionVector) c.(Client.ReadVersionVector) c.(Client.SessionSemantic), Message.mk nat 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
-      | _ => (c, Message.mk nat 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
+      match uint.nat ackMessage.(Message.S2C_Client_OperationType) with
+      | 0%nat => (Client.mk u64 c.(Client.Id) c.(Client.NumberOfServers) c.(Client.WriteVersionVector) ackMessage.(Message.S2C_Client_VersionVector) c.(Client.SessionSemantic), Message.mk u64 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
+      | 1%nat => (Client.mk u64 c.(Client.Id) c.(Client.NumberOfServers) ackMessage.(Message.S2C_Client_VersionVector) c.(Client.ReadVersionVector) c.(Client.SessionSemantic), Message.mk u64 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
+      | _ => (c, Message.mk u64 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
       end
-    | _ => (c, Message.mk nat 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
+    | _ => (c, Message.mk u64 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
     end.
 
   End Coq_nat.
@@ -1017,7 +1015,7 @@ Proof.
   - rewrite <- ltb_lt in H_gt; eauto 2. simpl in *. congruence.
 Qed.
 
-Definition is_sorted (l: list (Operation.t nat)) : Prop :=
+Definition is_sorted (l: list (Operation.t u64)) : Prop :=
   ∀ i, ∀ j, (i < j)%nat -> ∀ o1, ∀ o2, l !! i = Some o1 -> l !! j = Some o2 ->
   coq_lexicographicCompare o2.(Operation.VersionVector) o1.(Operation.VersionVector) = true.
 
@@ -1027,7 +1025,7 @@ Proof.
   reflexivity.
 Defined.
 
-Lemma coq_maxTS_length n xs ys
+Lemma length_coq_maxTS n xs ys
   (LEN1: length xs = n)
   (LEN2: length ys = n)
   : length (coq_maxTS xs ys) = n.
@@ -1043,15 +1041,61 @@ Proof.
   destruct (coq_equalSlices _ _) as [ | ]; simpl; try word.
 Qed.
 
-(* TODO: Lemma Forall_CONSTANT_replicate, Lemma Forall_CONSTANT_coq_maxTs. *)
+Lemma BOUND_replicate a x n
+  (BOUND_x : u64_has_value_boundary a x)
+  : Forall (u64_has_value_boundary a) (replicate n x).
+Proof.
+  induction n as [ | n IH]; simpl in *; eauto.
+Qed.
+
+Lemma BOUND_coq_maxTwoInts a x y
+  (BOUND_x : u64_has_value_boundary a x)
+  (BOUND_y : u64_has_value_boundary a y)
+  : u64_has_value_boundary a (coq_maxTwoInts x y).
+Proof.
+  unfold coq_maxTwoInts. red in BOUND_x, BOUND_y |- *. destruct (_ >? _)%Z as [ | ]; word.
+Qed.
+
+Lemma BOUND_coq_maxTS a xs ys
+  (BOUND_xs : Forall (u64_has_value_boundary a) xs)
+  (BOUND_ys : Forall (u64_has_value_boundary a) ys)
+  : Forall (u64_has_value_boundary a) (coq_maxTS xs ys).
+Proof.
+  revert ys BOUND_ys. induction BOUND_xs as [ | x x_wf xs xs_wf IH]; intros; destruct BOUND_ys as [ | y y_wf ys ys_wf]; simpl; eauto.
+  econstructor; eauto. eapply BOUND_coq_maxTwoInts; eauto.
+Qed.
 
 End properties.
 
 Module INVARIANT.
 
-(* TODO *)
+  Variant WEAK_SERVER_INVARIANT (EXTRA: Server.t u64 -> Prop) (server: Server.t u64) : Prop :=
+    | WEAK_SERVER_INVARIANT_INTRO
+      (PendingOperations_is_sorted: is_sorted server.(Server.PendingOperations))
+      (OperationsPerformed_is_sorted: is_sorted server.(Server.OperationsPerformed))
+      (EXTRA_SERVER_INVARIANT: EXTRA server)
+      : WEAK_SERVER_INVARIANT EXTRA server.
+
+  Record SERVER_INVARIANT (EXTRA: Server.t u64 -> Prop) (server: Server.t u64) : Prop :=
+    SERVER_INVARIANT_INTRO
+    { PendingOperations_is_sorted: is_sorted server.(Server.PendingOperations)
+    ; OperationsPerformed_is_sorted: is_sorted server.(Server.OperationsPerformed)
+    ; MyOperations_is_sorted: is_sorted server.(Server.MyOperations)
+    ; Id_in_range: (uint.Z server.(Server.Id) >= 0)%Z /\ (uint.nat server.(Server.Id) < length server.(Server.VectorClock))%nat
+    ; EXTRA_SERVER_INVARIANT: EXTRA server
+    }.
+
+  Record CLIENT_INVARIANT (EXTRA: Client.t u64 -> Prop) (client: Client.t u64) : Prop :=
+    CLIENT_INVARIANT_INTRO
+    { SessionSemantic_le_5: (uint.nat client.(Client.SessionSemantic) <= 5)%nat
+    ; EXTRA_CLIENT_INVARIANT: EXTRA client
+    }.
 
 End INVARIANT.
+
+Notation WEAK_SERVER_INVARIANT := INVARIANT.WEAK_SERVER_INVARIANT.
+Notation SERVER_INVARIANT := INVARIANT.SERVER_INVARIANT.
+Notation CLIENT_INVARIANT := INVARIANT.CLIENT_INVARIANT.
 
 Section heap.
 
@@ -1062,7 +1106,7 @@ Context `{hG: !heapGS Σ}.
 Lemma Operation_well_formed (n: nat) v op
   : (isOperation v op n)%I ⊢@{iProp Σ} (⌜Operation.well_formed (u64_well_formed := fun _ => True) n op⌝)%I.
 Proof.
-  iIntros "H_hd". iDestruct "H_hd" as "(%object & H_object & H3 & %H2 & %H1)"; iClear "H3".
+  iIntros "H_hd". iDestruct "H_hd" as "(H3 & %H2 & %H1)"; iClear "H3".
   iPureIntro; split; [eapply SessionPrelude.Forall_True | done].
 Qed.
 

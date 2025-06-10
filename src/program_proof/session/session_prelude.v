@@ -226,6 +226,96 @@ Module SessionPrelude.
     - rewrite -> Forall_app in FORALL |- *. tauto.
   Qed.
 
+  Lemma subseq_refl l
+    : subseq l l.
+  Proof.
+    induction l as [ | x xs IH] using list_rev_ind; eauto.
+  Qed.
+
+  #[local] Hint Resolve subseq_refl : core.
+
+  Lemma subseq_middle xs y zs
+    : subseq (xs ++ zs) (xs ++ [y] ++ zs).
+  Proof.
+    revert xs y. induction zs as [ | z zs IH] using list_rev_ind; intros.
+    - rewrite app_nil_r. simpl. econstructor 2; eauto.
+    - rewrite -> app_assoc with (l := xs). replace (xs ++ [y] ++ zs ++ [z]) with ((xs ++ [y]) ++ zs ++ [z]) by now repeat rewrite <- app_assoc.
+      rewrite -> app_assoc with (l := xs ++ [y]). econstructor 3; rewrite <- app_assoc; eauto.
+  Qed.
+
+  Lemma nil_subseq l
+    : subseq [] l.
+  Proof.
+    induction l as [ | x xs IH] using list_rev_ind; eauto.
+  Qed.
+
+  #[local] Hint Resolve nil_subseq : core.
+
+  Lemma proper_subseq_length xs ys
+    (SUBSEQ : subseq xs ys)
+    : xs = ys \/ ((length xs < length ys)%nat).
+  Proof.
+    induction SUBSEQ.
+    - left; trivial.
+    - destruct IHSUBSEQ as [IH | IH].
+      + subst xs. right. rewrite length_app. simpl. word.
+      + right. rewrite length_app. simpl. word.
+    - destruct IHSUBSEQ as [IH | IH].
+      + left; congruence.
+      + right. do 2 rewrite length_app; simpl. word.
+  Qed.
+
+  Lemma subseq_antisym xs ys
+    (SUBSEQ1 : subseq xs ys)
+    (SUBSEQ2 : subseq ys xs)
+    : xs = ys.
+  Proof.
+    apply proper_subseq_length in SUBSEQ1, SUBSEQ2.
+    destruct SUBSEQ1; trivial. symmetry.
+    destruct SUBSEQ2; trivial. word.
+  Qed.
+
+  Lemma length_lt_wf (f := @length A)
+    : well_founded (fun x => fun y => f x < f y)%nat.
+  Proof.
+    intros x. remember (f x) as y eqn: y_eq_f_x.
+    revert x y_eq_f_x. induction (lt_wf y) as [y' _ IH].
+    intros x' hyp_eq. econstructor. intros x f_x_R_f_x'.
+    subst y'. eapply IH; [exact f_x_R_f_x' | reflexivity].
+  Defined.
+
+  Lemma subseq_trans xs ys zs
+    (SUBSEQ1 : subseq xs ys)
+    (SUBSEQ2 : subseq ys zs)
+    : subseq xs zs.
+  Proof.
+    pose proof (COPY := SUBSEQ1). apply proper_subseq_length in COPY. destruct COPY as [-> | LENGTH1]; trivial.
+    revert xs ys LENGTH1 SUBSEQ1 SUBSEQ2. induction (length_lt_wf zs) as [zs _ IH]; intros.
+    pose proof (COPY := SUBSEQ2). apply proper_subseq_length in COPY. destruct COPY as [-> | LENGTH2]; trivial.
+    destruct SUBSEQ2; eauto; rename xs0 into zs.
+    - econstructor 2. eapply IH with (ys := zs); eauto.
+      rewrite length_app; simpl; word.
+    - inversion SUBSEQ1; subst; eauto; rename z0 into w, ys0 into ws.
+      + rewrite snoc_inv_iff in H1. destruct H1 as [-> ->]. econstructor 2.
+        pose proof (COPY := SUBSEQ). apply proper_subseq_length in COPY. destruct COPY as [-> | LENGTH]; trivial.
+        eapply IH with (ys := zs); eauto. rewrite length_app. simpl. word.
+      + rewrite snoc_inv_iff in H1. destruct H1 as [-> ->]. econstructor 3. rename xs0 into xs.
+        pose proof (COPY := SUBSEQ). apply proper_subseq_length in COPY. destruct COPY as [-> | LENGTH]; trivial.
+        eapply IH with (ys := zs); eauto. rewrite length_app. simpl. word.
+  Qed.
+
+  Definition deleteAt (l : list A) (n : nat) : list A :=
+    take n l ++ drop (n + 1)%nat l.
+
+  Lemma subseq_deleteAt l n
+    : subseq (deleteAt l n) l.
+  Proof.
+    rewrite <- take_drop with (l := l) (i := n) at 2. unfold deleteAt. rewrite <- drop_drop.
+    destruct (drop n l) as [ | x xs]; simpl.
+    - rewrite app_nil_r; eauto.
+    - eapply subseq_middle.
+  Qed.
+
   End MORE_LIST_LEMMAS.
 
   #[local] Hint Constructors subseq : core.
@@ -891,7 +981,7 @@ Module SessionPrelude.
     | h1 :: t1 =>
       match v2 with
       | [] => true
-      | h2 :: t2 => (h1 =? h2) && vectorEq t1 t2
+      | h2 :: t2 => if negb (h1 =? h2) then false else vectorEq t1 t2
       end
     end.
 
