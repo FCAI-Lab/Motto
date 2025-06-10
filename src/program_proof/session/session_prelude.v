@@ -206,10 +206,10 @@ Module SessionPrelude.
   Inductive subseq : list A -> list A -> Prop :=
     | subseq_nil
       : subseq [] []
-    | subseq_snoc xs ys z
+    | subseq_skip xs ys z
       (SUBSEQ : subseq xs ys)
       : subseq xs (ys ++ [z])
-    | subseq_skip xs ys z
+    | subseq_snoc xs ys z
       (SUBSEQ : subseq xs ys)
       : subseq (xs ++ [z]) (ys ++ [z]).
 
