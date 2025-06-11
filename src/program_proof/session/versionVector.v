@@ -1,6 +1,6 @@
 From Perennial.program_proof.session Require Export session_definitions.
 
-Section heap.
+Section VERSION_VECTOR.
 
 Import ServerSide SessionServer.
 
@@ -541,7 +541,7 @@ Proof.
       unfold coq_oneOffVersionVector. fold loop_step. replace (true, true) with loop_init by auto. destruct (fold_left loop_step (zip xs_prev ys_prev) loop_init) as [ind ?]. simpl in *. rewrite <- H11. rewrite andb_false_l. auto.
 Qed.
 
-End heap.
+End VERSION_VECTOR.
 
 #[global] Opaque SessionServer.compareVersionVector.
 #[global] Opaque SessionServer.lexicographicCompare.
@@ -550,7 +550,7 @@ End heap.
 #[global] Opaque SessionServer.equalSlices.
 #[global] Opaque SessionServer.oneOffVersionVector.
 
-Section heap.
+Section SORT.
 
 Import ServerSide SessionServer.
 
@@ -744,7 +744,7 @@ Proof.
   }
 Qed.
 
-End heap.
+End SORT.
 
 #[global] Opaque SessionServer.binarySearch.
 #[global] Opaque SessionServer.sortedInsert.

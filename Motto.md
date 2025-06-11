@@ -20,7 +20,7 @@ compiled with OCaml 5.2.1
 ## Progress
 
 - [x] `session_prelude.v` (1325 lines)
-- [x] `session_definitions.v` (1120 lines)
+- [x] `session_definitions.v` (1118 lines)
 - [x] `versionVector.v` (751 lines)
 - [ ] `gossip.v`
 - [ ] `processRequest.v`
