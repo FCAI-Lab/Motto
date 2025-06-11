@@ -121,5 +121,5 @@ From New Require should_build.
 
 From Perennial Require LiteBuild.
 From Perennial.program_proof.session Require Import
-     session_prelude session_definitions versionVector
+     session_prelude session_definitions versionVector gossip processRequest u64ToNat
 .

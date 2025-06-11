@@ -19,9 +19,12 @@ compiled with OCaml 5.2.1
 
 ## Progress
 
-- [x] `session_prelude.v` (1210 lines)
-- [ ] `session_definitions.v`
-- [ ] `versionVector.v`
+- [x] `session_prelude.v` (1325 lines)
+- [x] `session_definitions.v` (1120 lines)
+- [x] `versionVector.v` (751 lines)
+- [ ] `gossip.v`
+- [ ] `processRequest.v`
+- [ ] `u64ToNat.v`
 
 ## Notable Changes
 
@@ -38,4 +41,9 @@ compiled with OCaml 5.2.1
 
 - Removed the Go function `equalOperations()` from `server.go`.
 - Added the nat-version Coq counterpart functions `session_definitions`.
-- Added the file `versionVector.v` in he directory `src/program_proof/session/`. It includes 
+- Added the file `versionVector.v` in the directory `src/program_proof/session/`. It includes the wp_lemmas relavant to `VersionVector`.
+
+### 2025-06-10
+
+- Added the file `gossip.v`, `processRequest`, and `u64ToNat` in the directory `src/program_proof/session/`.
+- Completed `session_prelude.v`, `session_definitions.v`, and `versionVector.v`.

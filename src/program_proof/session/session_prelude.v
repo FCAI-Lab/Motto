@@ -1,5 +1,10 @@
 From Perennial.program_proof Require Export std_proof grove_prelude.
 
+#[global] Create HintDb session_hints.
+
+#[global] Tactic Notation "word" :=
+  first [lia | intros; word].
+
 Module Tac.
 
   Ltac revert_until y :=
@@ -10,41 +15,35 @@ Module Tac.
   Ltac simplNotation :=
     autounfold with session_hints in *; simpl in *.
 
-  Ltac get_last_assumption :=
-    lazymatch goal with
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _, x15 : _, x16 : _, x17 : _, x18 : _, x19 : _, x20 : _ |- ?A ] => x20
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _, x15 : _, x16 : _, x17 : _, x18 : _, x19 : _ |- ?A ] => x19
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _, x15 : _, x16 : _, x17 : _, x18 : _ |- ?A ] => x18
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _, x15 : _, x16 : _, x17 : _ |- ?A ] => x17
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _, x15 : _, x16 : _ |- ?A ] => x16
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _, x15 : _ |- ?A ] => x15
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _, x14 : _ |- ?A ] => x14
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _, x13 : _ |- ?A ] => x13
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _, x12 : _ |- ?A ] => x12
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _, x11 : _ |- ?A ] => x11
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _, x10 : _ |- ?A ] => x10
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _, x9 : _ |- ?A ] => x9
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _, x8 : _ |- ?A ] => x8
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _, x7 : _ |- ?A ] => x7
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _, x6 : _ |- ?A ] => x6
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _, x5 : _ |- ?A ] => x5
-    | [ x0 : _, x1 : _, x2 : _, x3 : _, x4 : _ |- ?A ] => x4
-    | [ x0 : _, x1 : _, x2 : _, x3 : _ |- ?A ] => x3
-    | [ x0 : _, x1 : _, x2 : _ |- ?A ] => x2
-    | [ x0 : _, x1 : _ |- ?A ] => x1
-    | [ x0 : _ |- ?A ] => x0
-    end.
+  Ltac des :=
+    autounfold with session_hints in *;
+    repeat (
+      lazymatch goal with
+      | [ |- context C[ (?X =? ?Y)%Z ] ] =>
+        let H_OBS := fresh "H_OBS" in destruct (X =? Y) as [ | ] eqn: H_OBS; [rewrite Z.eqb_eq in H_OBS | rewrite Z.eqb_neq in H_OBS]
+      | [ |- context C[ (?X <? ?Y)%Z ] ] =>
+        let H_OBS := fresh "H_OBS" in destruct (X <? Y) as [ | ] eqn: H_OBS; [rewrite Z.ltb_lt in H_OBS | rewrite Z.ltb_nlt in H_OBS]
+      | [ |- context C[ (?X <=? ?Y)%Z ] ] =>
+        let H_OBS := fresh "H_OBS" in destruct (X <=? Y) as [ | ] eqn: H_OBS; [rewrite Z.leb_le in H_OBS | rewrite Z.leb_nle in H_OBS]
+      | [ |- context C[ (?X >=? ?Y)%Z ] ] => rewrite Z.geb_leb;
+        let H_OBS := fresh "H_OBS" in destruct (Y <=? X) as [ | ] eqn: H_OBS; [rewrite Z.leb_le in H_OBS | rewrite Z.leb_nle in H_OBS]
+      | [ |- context C[ (?X >? ?Y)%Z ] ] => rewrite Z.gtb_ltb;
+        let H_OBS := fresh "H_OBS" in destruct (Y <? X) as [ | ] eqn: H_OBS; [rewrite Z.ltb_lt in H_OBS | rewrite Z.ltb_nlt in H_OBS]
+      | [ H : _ /\ _ |- _ ] => let H' := fresh H in destruct H as [H H']
+      end
+    ).
 
 End Tac.
 
-#[global] Create HintDb session_hints.
+#[global] Tactic Notation "congruence" :=
+  Tac.des; congruence.
+
+#[global] Tactic Notation "ss!" :=
+  Tac.des; try first [congruence | word | tauto].
 
 #[global] Hint Constructors Forall : session_hints.
 
 Module SessionPrelude.
-
-  #[local] Tactic Notation "word" :=
-    intros; word.
 
   #[local] Obligation Tactic := intros.
 
@@ -1162,6 +1161,14 @@ Module SessionPrelude.
   #[global] Arguments value_of {A} {has_value_of} _ /.
 
   #[global]
+  Instance nil_has_value_of : has_value_of ()%type :=
+    fun _ : ()%type => #()%V.
+
+  #[global]
+  Instance pair_has_value_of {A : Type} {B : Type} `(has_value_of A) `(has_value_of B) : has_value_of (A * B)%type :=
+    fun p : (A * B)%type => (value_of p.1, value_of p.2)%V.
+
+  #[global]
   Instance u64_has_value_of : has_value_of u64 :=
     fun x : u64 => #x.
 
@@ -1208,6 +1215,18 @@ Module TypeVector.
       end
     ).
   Defined.
+
+  Fixpoint mkType {n} (Ts: TypeVector.t n) (X: Type) {struct Ts} : Type :=
+    match Ts with
+    | nil => X
+    | cons T' Ts' => mkType Ts' (T' * X)
+    end.
+
+  Fixpoint mkValue (n: nat) (Ts: TypeVector.t n) {struct Ts} : forall X : Type, SessionPrelude.has_value_of X -> mkType Ts X -> val :=
+    match Ts as Ts return forall X : Type, SessionPrelude.has_value_of X -> mkType Ts X -> val with
+    | nil => fun X => fun X_has_value_of => fun seed => X_has_value_of seed
+    | cons T' Ts' => fun X => fun X_has_value_of => fun seed => mkValue _ Ts' (T' * X)%type _ seed
+    end.
 
   Definition head {n} (Ts: TypeVector.t (S n)) : Type :=
     match Ts in TypeVector.t n' return
@@ -1289,6 +1308,12 @@ Definition tuple_of {n: nat} (Ts: TypeVector.t (S n)) : Type :=
   TypeVector.tuple_of n Ts.
 
 #[global] Arguments tuple_of {n} Ts : simpl never.
+
+Definition mkType {n} (Ts: TypeVector.t n) : Type :=
+  TypeVector.mkType Ts ()%type.
+
+Definition mkValue {n} (Ts: TypeVector.t n) (seed: mkType Ts) : val :=
+  TypeVector.mkValue n Ts ()%type SessionPrelude.nil_has_value_of seed.
 
 #[global]
 Instance tuple_of_has_value_of {n} (Ts: TypeVector.t (S n)) : SessionPrelude.has_value_of (tuple_of Ts) :=
