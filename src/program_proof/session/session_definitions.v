@@ -42,10 +42,10 @@ Qed.
 
 Module _Data.
 
-  Definition t : Type :=
+  Definition w : Type :=
     u64.
 
-  #[global] Instance has_value_of_Data : SessionPrelude.has_value_of t :=
+  #[global] Instance has_value_of_Data : SessionPrelude.has_value_of w :=
     SessionPrelude.u64_has_value_of.
 
   Definition ty : ty :=
@@ -60,15 +60,15 @@ Module _Data.
   #[global] Hint Resolve _Data.val_ty : typeclasses_hints.
 
   #[global]
-  Instance IntoVal : IntoVal _Data.t :=
+  Instance IntoVal : IntoVal _Data.w :=
     u64_IntoVal.
 
 End _Data.
 
-#[local] Tactic Notation "tac_val_t" :=
+#[local] Tactic Notation "tac_val_ty" :=
   let val := lazymatch goal with [ |- val_ty (?val _) _ ] => val end in
   lazymatch goal with [ v : tuple_of ?tv |- _ ] => unfold tuple_of in v; unfold tv in v; simpl in v; unfold val; simpl end;
-  repeat constructor; auto.
+  repeat constructor; ss!.
 
 #[local] Tactic Notation "tac_IntoVal" integer( n ) :=
   intros;
@@ -77,12 +77,12 @@ End _Data.
 
 #[local] Tactic Notation "tac_IntoValForType" :=
   let tv := lazymatch goal with [ |- IntoValForType (tuple_of ?tv) _ ] => tv end in
-  unfold tuple_of, tv, _Data.t; simpl; repeat split; ss!.
+  unfold tuple_of, tv, _Data.w; simpl; repeat split; ss!.
 
 Module Operation.
 
   Definition tv : TypeVector.t 2 :=
-    [Slice.t,_Data.t].
+    [Slice.t,_Data.w].
 
   Definition from_val (v: val) : option (tuple_of tv) :=
     match v with
@@ -99,14 +99,14 @@ Module Operation.
 
   Record t : Type := mk
     { VersionVector: list u64
-    ; Data:          _Data.t
+    ; Data:          _Data.w
     }.
 
   #[global, program]
   Instance IntoVal : IntoVal (tuple_of tv) :=
     { to_val := val
     ; from_val := from_val
-    ; IntoVal_def := (IntoVal_def Slice.t, IntoVal_def _Data.t)
+    ; IntoVal_def := (IntoVal_def Slice.t, IntoVal_def _Data.w)
     }.
   Next Obligation.
     tac_IntoVal 1.
@@ -115,7 +115,7 @@ Module Operation.
   Theorem val_t v
     : val_ty (Operation.val v) (struct.t SessionServer.Operation).
   Proof.
-    tac_val_t.
+    tac_val_ty.
   Qed.
 
   #[global] Hint Resolve val_t : session_hints.
@@ -168,7 +168,7 @@ End Operation.
 Module Message.
 
   Definition tv : TypeVector.t 18 :=
-    [u64,u64,u64,u64,_Data.t,Slice.t,u64,u64,Slice.t,u64,u64,u64,u64,u64,_Data.t,Slice.t,u64,u64].
+    [u64,u64,u64,u64,_Data.w,Slice.t,u64,u64,Slice.t,u64,u64,u64,u64,u64,_Data.w,Slice.t,u64,u64].
 
   Definition from_val (v: val) : option (tuple_of tv) :=
     match v with
@@ -189,7 +189,7 @@ Module Message.
     ; C2S_Client_Id:            u64
     ; C2S_Server_Id:            u64
     ; C2S_Client_OperationType: u64
-    ; C2S_Client_Data:          _Data.t
+    ; C2S_Client_Data:          _Data.w
     ; C2S_Client_VersionVector: list u64
 
     ; S2S_Gossip_Sending_ServerId:   u64
@@ -202,7 +202,7 @@ Module Message.
     ; S2S_Acknowledge_Gossip_Index:              u64
 
     ; S2C_Client_OperationType: u64
-    ; S2C_Client_Data:          _Data.t
+    ; S2C_Client_Data:          _Data.w
     ; S2C_Client_VersionVector: list u64
     ; S2C_Server_Id:            u64
     ; S2C_Client_Number:        u64
@@ -212,7 +212,7 @@ Module Message.
   Instance IntoVal : IntoVal (tuple_of tv) :=
     { to_val := val
     ; from_val := from_val
-    ; IntoVal_def := (W64 0, W64 0, W64 0, W64 0, IntoVal_def _Data.t, IntoVal_def Slice.t, W64 0, W64 0, IntoVal_def Slice.t, W64 0, W64 0, W64 0, W64 0, W64 0, IntoVal_def _Data.t, IntoVal_def Slice.t, W64 0, W64 0);
+    ; IntoVal_def := (W64 0, W64 0, W64 0, W64 0, IntoVal_def _Data.w, IntoVal_def Slice.t, W64 0, W64 0, IntoVal_def Slice.t, W64 0, W64 0, W64 0, W64 0, W64 0, IntoVal_def _Data.w, IntoVal_def Slice.t, W64 0, W64 0);
     }.
   Next Obligation.
     tac_IntoVal 17.
@@ -221,7 +221,7 @@ Module Message.
   Theorem val_t v
     : val_ty (Message.val v) (struct.t SessionServer.Message).
   Proof.
-    tac_val_t.
+    tac_val_ty.
   Qed.
 
   #[global] Hint Resolve val_t : session_hints.
@@ -295,7 +295,7 @@ Module Server.
   Theorem val_t v
     : val_ty (Server.val v) (struct.t SessionServer.Server).
   Proof.
-    tac_val_t.
+    tac_val_ty.
   Qed.
 
   #[global] Hint Resolve val_t : session_hints.
@@ -308,8 +308,8 @@ Module Server.
 
   Section ADD_ON.
 
-  Definition size_of (server: Server.t) : nat * nat * nat * nat * nat :=
-    (length server.(VectorClock), length server.(OperationsPerformed), length server.(MyOperations), length server.(PendingOperations), length server.(GossipAcknowledgements)).
+  Definition size_of (server: Server.t) : nat * nat :=
+    (length server.(VectorClock), length server.(GossipAcknowledgements)).
 
   Definition value_bound (server: Server.t) : Prop :=
     u64_le_CONSTANT server.(Server.Id) /\ u64_le_CONSTANT server.(Server.NumberOfServers) /\ Forall u64_le_CONSTANT server.(Server.VectorClock).
@@ -361,7 +361,7 @@ Module Client.
   Theorem val_t v
     : val_ty (Client.val v) (struct.t SessionClient.Client).
   Proof.
-    tac_val_t.
+    tac_val_ty.
   Qed.
 
   #[global] Hint Resolve val_t : session_hints.
@@ -436,7 +436,7 @@ Module ServerSide.
     operation_slice v!(5) server.(Server.MyOperations) len_mo ∗
     operation_slice v!(6) server.(Server.PendingOperations) len_po ∗
     own_slice_small v!(7) uint64T (DfracOwn 1) server.(Server.GossipAcknowledgements) ∗
-    ⌜Server.size_of server = (len_vc, len_op, len_mo, len_po, len_ga) /\ Server.value_bound server⌝.
+    ⌜Server.size_of server = (len_vc, len_ga) /\ Server.value_bound server⌝.
 
   Definition is_server sv s n len_vc len_op len_mo len_po len_ga : iProp Σ :=
     is_server' sv s n len_vc len_op len_mo len_po len_ga true.
@@ -632,14 +632,14 @@ Module ServerSide.
 
   Definition coq_processClientRequest (s: Server.t) (r: Message.t) : bool * Server.t * Message.t :=
     if negb (coq_compareVersionVector s.(Server.VectorClock) r.(Message.C2S_Client_VersionVector)) then
-      (false, s, Message.mk 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
+      (false, s, Message.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0)
     else
       if uint.Z r.(Message.C2S_Client_OperationType) =? 0 then
         let S2C_Client_Data := coq_getDataFromOperationLog s.(Server.OperationsPerformed) in
         let S2C_Client_VersionVector := s.(Server.VectorClock) in
         let S2C_Client_Number := r.(Message.C2S_Client_Id) in
         let S2C_Server_Id := s.(Server.Id) in
-        (true, s, Message.mk 4 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 S2C_Client_Data S2C_Client_VersionVector S2C_Server_Id S2C_Client_Number)
+        (true, s, Message.mk 4 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 S2C_Client_Data S2C_Client_VersionVector S2C_Server_Id S2C_Client_Number)
       else
         let v := match s.(Server.VectorClock) !! uint.nat s.(Server.Id) with Some v => uint.Z v | None => 0 end in
         if (v <=? CONSTANT - 1)%Z && (length s.(Server.MyOperations) <=? CONSTANT - 1)%Z then
@@ -647,13 +647,13 @@ Module ServerSide.
           let OperationsPerformed := coq_sortedInsert s.(Server.OperationsPerformed) (Operation.mk VectorClock r.(Message.C2S_Client_Data)) in
           let MyOperations := coq_sortedInsert s.(Server.MyOperations) (Operation.mk VectorClock r.(Message.C2S_Client_Data)) in
           let S2C_Client_OperationType := 1 in
-          let S2C_Client_Data := (IntoVal_def _Data.t) in
+          let S2C_Client_Data := (IntoVal_def _Data.w) in
           let S2C_Client_VersionVector := VectorClock in
           let S2C_Client_Number := r.(Message.C2S_Client_Id) in
           let S2C_Server_Id := s.(Server.Id) in
-          (true, Server.mk s.(Server.Id) s.(Server.NumberOfServers) s.(Server.UnsatisfiedRequests) VectorClock OperationsPerformed MyOperations s.(Server.PendingOperations) s.(Server.GossipAcknowledgements), Message.mk 4 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 1 S2C_Client_Data S2C_Client_VersionVector S2C_Server_Id S2C_Client_Number)
+          (true, Server.mk s.(Server.Id) s.(Server.NumberOfServers) s.(Server.UnsatisfiedRequests) VectorClock OperationsPerformed MyOperations s.(Server.PendingOperations) s.(Server.GossipAcknowledgements), Message.mk 4 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 1 S2C_Client_Data S2C_Client_VersionVector S2C_Server_Id S2C_Client_Number)
         else
-          (false, s, Message.mk 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0).
+          (false, s, Message.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0).
 
   Definition coq_processRequest (server: Server.t) (request: Message.t) : Server.t * list Message.t :=
     match uint.nat request.(Message.MessageType) with
@@ -693,7 +693,7 @@ Module ServerSide.
           let S2S_Gossip_Receiving_ServerId := index in
           let S2S_Gossip_Operations := operations in
           let S2S_Gossip_Index := length (server.(Server.MyOperations)) in
-          let message := Message.mk 1 0 0 0 (IntoVal_def _Data.t) [] S2S_Gossip_Sending_ServerId S2S_Gossip_Receiving_ServerId S2S_Gossip_Operations S2S_Gossip_Index 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 in
+          let message := Message.mk 1 0 0 0 (IntoVal_def _Data.w) [] S2S_Gossip_Sending_ServerId S2S_Gossip_Receiving_ServerId S2S_Gossip_Operations S2S_Gossip_Index 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 in
           (Server.mk server.(Server.Id) server.(Server.NumberOfServers) server.(Server.UnsatisfiedRequests) server.(Server.VectorClock) server.(Server.OperationsPerformed) server.(Server.MyOperations) server.(Server.PendingOperations) GossipAcknowledgements, outGoingRequests ++ [message])
         else
           (server, outGoingRequests)
@@ -728,46 +728,46 @@ Module ClientSide.
 
   End heap.
 
-  Section Coq_nat.
+  Section Coq_u64.
 
   Import ServerSide.
 
   Definition coq_read (c: Client.t) (serverId: u64) : Message.t :=
     match uint.nat c.(Client.SessionSemantic) with
-    | 0%nat => Message.mk 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 1%nat => Message.mk 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 2%nat => Message.mk 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 3%nat => Message.mk 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) c.(Client.ReadVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 4%nat => Message.mk 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) c.(Client.WriteVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 5%nat => Message.mk 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.t) (coq_maxTS c.(Client.WriteVersionVector) c.(Client.ReadVersionVector)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | _ => Message.mk 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | 0%nat => Message.mk 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.w) (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 1%nat => Message.mk 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.w) (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 2%nat => Message.mk 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.w) (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 3%nat => Message.mk 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.w) c.(Client.ReadVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 4%nat => Message.mk 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.w) c.(Client.WriteVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 5%nat => Message.mk 0 c.(Client.Id) serverId 0 (IntoVal_def _Data.w) (coq_maxTS c.(Client.WriteVersionVector) c.(Client.ReadVersionVector)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | _ => Message.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
     end.
 
-  Definition coq_write (c: Client.t) (serverId: u64) (value: _Data.t) : Message.t :=
+  Definition coq_write (c: Client.t) (serverId: u64) (value: _Data.w) : Message.t :=
     match uint.nat c.(Client.SessionSemantic) with
-    | 0%nat => Message.mk 0 c.(Client.Id) serverId 1 value (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 1%nat => Message.mk 0 c.(Client.Id) serverId 1 value c.(Client.ReadVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 2%nat => Message.mk 0 c.(Client.Id) serverId 1 value c.(Client.WriteVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 3%nat => Message.mk 0 c.(Client.Id) serverId 1 value (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 4%nat => Message.mk 0 c.(Client.Id) serverId 1 value (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | 5%nat => Message.mk 0 c.(Client.Id) serverId 1 value (coq_maxTS c.(Client.WriteVersionVector) c.(Client.ReadVersionVector)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
-    | _ => Message.mk 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0
+    | 0%nat => Message.mk 0 c.(Client.Id) serverId 1 value (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 1%nat => Message.mk 0 c.(Client.Id) serverId 1 value c.(Client.ReadVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 2%nat => Message.mk 0 c.(Client.Id) serverId 1 value c.(Client.WriteVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 3%nat => Message.mk 0 c.(Client.Id) serverId 1 value (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 4%nat => Message.mk 0 c.(Client.Id) serverId 1 value (replicate (uint.nat c.(Client.NumberOfServers)) (W64 0)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 5%nat => Message.mk 0 c.(Client.Id) serverId 1 value (coq_maxTS c.(Client.WriteVersionVector) c.(Client.ReadVersionVector)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | _ => Message.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
     end.
 
-  Definition coq_processRequest (c: Client.t) (requestType: u64) (serverId: u64) (value: _Data.t) (ackMessage: Message.t) : Client.t * Message.t :=
+  Definition coq_processRequest (c: Client.t) (requestType: u64) (serverId: u64) (value: _Data.w) (ackMessage: Message.t) : Client.t * Message.t :=
     match uint.nat requestType with
     | 0%nat => (c, coq_read c serverId)
     | 1%nat => (c, coq_write c serverId value)
     | 2%nat =>
       match uint.nat ackMessage.(Message.S2C_Client_OperationType) with
-      | 0%nat => (Client.mk c.(Client.Id) c.(Client.NumberOfServers) c.(Client.WriteVersionVector) ackMessage.(Message.S2C_Client_VersionVector) c.(Client.SessionSemantic), Message.mk 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
-      | 1%nat => (Client.mk c.(Client.Id) c.(Client.NumberOfServers) ackMessage.(Message.S2C_Client_VersionVector) c.(Client.ReadVersionVector) c.(Client.SessionSemantic), Message.mk 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
-      | _ => (c, Message.mk 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
+      | 0%nat => (Client.mk c.(Client.Id) c.(Client.NumberOfServers) c.(Client.WriteVersionVector) ackMessage.(Message.S2C_Client_VersionVector) c.(Client.SessionSemantic), Message.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0)
+      | 1%nat => (Client.mk c.(Client.Id) c.(Client.NumberOfServers) ackMessage.(Message.S2C_Client_VersionVector) c.(Client.ReadVersionVector) c.(Client.SessionSemantic), Message.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0)
+      | _ => (c, Message.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0)
       end
-    | _ => (c, Message.mk 0 0 0 0 (IntoVal_def _Data.t) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.t) [] 0 0)
+    | _ => (c, Message.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0)
     end.
 
-  End Coq_nat.
+  End Coq_u64.
 
 End ClientSide.
 
@@ -1115,3 +1115,8 @@ Proof.
 Qed.
 
 End heap.
+
+#[global] Hint Extern 5 (val_ty (Operation.val _)) => unfold Operation.val; simpl; repeat constructor; auto : session_hints.
+#[global] Hint Extern 5 (val_ty (Message.val _)) => unfold Message.val; simpl; repeat constructor; auto : session_hints.
+#[global] Hint Extern 5 (val_ty (Server.val _)) => unfold Server.val; simpl; repeat constructor; auto : session_hints.
+#[global] Hint Extern 5 (val_ty (Client.val _)) => unfold Client.val; simpl; repeat constructor; auto : session_hints.

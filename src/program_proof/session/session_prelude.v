@@ -15,6 +15,12 @@ Module Tac.
   Ltac simplNotation :=
     autounfold with session_hints in *; simpl in *.
 
+  Lemma pair_inv {A : Type} {B : Type} (x1 : A) (y1 : B) (x2 : A) (y2 : B)
+    : (x1, y1) = (x2, y2) <-> x1 = x2 /\ y1 = y2.
+  Proof.
+    split; [intros EQ; split; congruence | intros [EQ1 EQ2]; congruence].
+  Qed.
+
   Ltac des :=
     autounfold with session_hints in *;
     repeat (
@@ -30,6 +36,7 @@ Module Tac.
       | [ |- context C[ (?X >? ?Y)%Z ] ] => rewrite Z.gtb_ltb;
         let H_OBS := fresh "H_OBS" in destruct (Y <? X) as [ | ] eqn: H_OBS; [rewrite Z.ltb_lt in H_OBS | rewrite Z.ltb_nlt in H_OBS]
       | [ H : _ /\ _ |- _ ] => let H' := fresh H in destruct H as [H H']
+      | [ H : (_, _)%core = (_, _)%core |- _ ] => rewrite pair_inv in H
       end
     ).
 
