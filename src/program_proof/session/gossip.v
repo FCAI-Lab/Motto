@@ -1,1 +1,1 @@
-From Perennial.program_proof.session Require Import session_prelude session_definitions.
+From Perennial.program_proof.session Require Import versionVector.

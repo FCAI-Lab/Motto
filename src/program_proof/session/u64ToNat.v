@@ -656,8 +656,6 @@ Module CoqNatServer.
     (destruct (uint.Z x <? uint.Z y)%Z as [ | ] eqn: H_OBS; [rewrite Z.ltb_lt in H_OBS | rewrite Z.ltb_ge in H_OBS]); (destruct (uint.nat y <=? uint.nat x)%nat as [ | ] eqn: H_OBS'; [rewrite Nat.leb_le in H_OBS' | rewrite Nat.leb_gt in H_OBS']); simpl in *; try word; [red; reflexivity | eapply IH; red; eauto].
   Qed.
 
-  #[global] Hint Resolve coq_compareVersionVector_corres : session_hints.
-
   Lemma coq_lexicographicCompare_corres
     : ServerSide.coq_lexicographicCompare =~= coq_lexicographicCompare.
   Proof.
@@ -671,8 +669,6 @@ Module CoqNatServer.
       + rewrite Z.ltb_ge. word.
   Qed.
 
-  #[global] Hint Resolve coq_lexicographicCompare_corres : session_hints.
-
   Lemma coq_maxTwoInts_corres
     : ServerSide.coq_maxTwoInts =~= coq_maxTwoInts.
   Proof.
@@ -681,8 +677,6 @@ Module CoqNatServer.
     rewrite Z.gtb_ltb; (destruct (uint.Z y <? uint.Z x)%Z as [ | ] eqn: H_OBS; [rewrite Z.ltb_lt in H_OBS | rewrite Z.ltb_ge in H_OBS]); (destruct (uint.nat y <? uint.nat x)%nat as [ | ] eqn: H_OBS'; [rewrite Nat.ltb_lt in H_OBS' | rewrite Nat.ltb_nlt in H_OBS']); (do 2 red; try word).
   Qed.
 
-  #[global] Hint Resolve coq_maxTwoInts_corres : session_hints.
-
   Lemma coq_maxTS_corres
     : ServerSide.coq_maxTS =~= coq_maxTS.
   Proof.
@@ -690,8 +684,6 @@ Module CoqNatServer.
     induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl; eauto.
     econstructor 2; eauto. eapply coq_maxTwoInts_corres; eauto with *.
   Qed.
-
-  #[global] Hint Resolve coq_maxTS_corres : session_hints.
 
   Lemma coq_oneOffVersionVector_corres
     : ServerSide.coq_oneOffVersionVector =~= coq_oneOffVersionVector.
@@ -726,8 +718,6 @@ Module CoqNatServer.
     - eauto with *.
   Qed.
 
-  #[global] Hint Resolve coq_oneOffVersionVector_corres : session_hints.
-
   Lemma coq_equalSlices_corres
     : ServerSide.coq_equalSlices =~= coq_equalSlices.
   Proof.
@@ -735,8 +725,6 @@ Module CoqNatServer.
     destruct x_corres as [<- [? ?]], y_corres as [<- [? ?]]; simpl in *; (destruct (uint.Z x =? uint.Z y)%Z as [ | ] eqn: H_OBS; [rewrite Z.eqb_eq in H_OBS | rewrite Z.eqb_neq in H_OBS]); (destruct (uint.nat x =? uint.nat y)%nat as [ | ] eqn: H_OBS'; [rewrite Nat.eqb_eq in H_OBS' | rewrite Nat.eqb_neq in H_OBS']); simpl in *; first [reflexivity | word | trivial].
     eapply IH; trivial.
   Qed.
-
-  #[global] Hint Resolve coq_equalSlices_corres : session_hints.
 
   Lemma coq_equalOperations_corres
     : ServerSide.coq_equalOperations =~= coq_equalOperations.
@@ -746,8 +734,6 @@ Module CoqNatServer.
     - do 2 red in Data_corres, Data_corres0 |- *. destruct Data_corres as [? [? ?]], Data_corres0 as [? [? ?]]. rewrite <- H, <- H2.
       destruct (uint.nat o1.(Operation.Data) =? uint.nat o2.(Operation.Data))%nat as [ | ] eqn: H_OBS; [rewrite Nat.eqb_eq in H_OBS; rewrite Z.eqb_eq | rewrite Nat.eqb_neq in H_OBS; rewrite Z.eqb_neq]; word.
   Qed.
-
-  #[global] Hint Resolve coq_equalOperations_corres : session_hints.
 
   Lemma coq_sortedInsert_corres
     : ServerSide.coq_sortedInsert =~= coq_sortedInsert.
@@ -765,8 +751,6 @@ Module CoqNatServer.
       + econstructor 2; trivial. eapply IH; trivial.
   Qed.
 
-  #[global] Hint Resolve coq_sortedInsert_corres : session_hints.
-
   Lemma coq_deleteAtIndexOperation_corres
     : ServerSide.coq_deleteAtIndexOperation =~= coq_deleteAtIndexOperation.
   Proof.
@@ -774,16 +758,12 @@ Module CoqNatServer.
     eapply app_corres; [eapply take_corres | eapply drop_corres]; eauto; do 2 red in n_corres |- *; word.
   Qed.
 
-  #[global] Hint Resolve coq_deleteAtIndexOperation_corres : session_hints.
-
   Lemma coq_deleteAtIndexMessage_corres
     : ServerSide.coq_deleteAtIndexMessage =~= coq_deleteAtIndexMessage.
   Proof.
     intros xs xs' xs_corres n n' n_corres; unfold ServerSide.coq_deleteAtIndexMessage, coq_deleteAtIndexMessage.
     eapply app_corres; [eapply take_corres | eapply drop_corres]; eauto; do 2 red in n_corres |- *; word.
   Qed.
-
-  #[global] Hint Resolve coq_deleteAtIndexMessage_corres : session_hints.
 
   Lemma coq_getDataFromOperationLog_corres
     : ServerSide.coq_getDataFromOperationLog =~= coq_getDataFromOperationLog.
@@ -795,42 +775,30 @@ Module CoqNatServer.
     - do 2 red; rewrite -> CONSTANT_unfold in *; word.
   Qed.
 
-  #[global] Hint Resolve coq_getDataFromOperationLog_corres : session_hints.
-
   Lemma coq_receiveGossip_corres
     : ServerSide.coq_receiveGossip =~= coq_receiveGossip.
   Proof.
   Admitted.
-
-  #[global] Hint Resolve coq_receiveGossip_corres : session_hints.
 
   Lemma coq_acknowledgeGossip_corres
     : ServerSide.coq_acknowledgeGossip =~= coq_acknowledgeGossip.
   Proof.
   Admitted.
 
-  #[global] Hint Resolve coq_acknowledgeGossip_corres : session_hints.
-
   Lemma coq_getGossipOperations_corres
     : ServerSide.coq_getGossipOperations =~= coq_getGossipOperations.
   Proof.
   Admitted.
-
-  #[global] Hint Resolve coq_getGossipOperations_corres : session_hints.
 
   Lemma coq_processClientRequest_corres
     : ServerSide.coq_processClientRequest =~= coq_processClientRequest.
   Proof.
   Admitted.
 
-  #[global] Hint Resolve coq_processClientRequest_corres : session_hints.
-
   Lemma coq_processRequest_corres
     : ServerSide.coq_processRequest =~= coq_processRequest.
   Proof.
   Admitted.
-
-  #[global] Hint Resolve coq_processRequest_corres : session_hints.
 
 End CoqNatServer.
 
@@ -878,21 +846,15 @@ Module CoqNatClient.
   Proof.
   Admitted.
 
-  #[global] Hint Resolve coq_read_corres : session_hints.
-
   Lemma coq_write_corres
     : ClientSide.coq_write =~= coq_write.
   Proof.
   Admitted.
 
-  #[global] Hint Resolve coq_write_corres : session_hints.
-
   Lemma coq_processRequest_corres
     : ClientSide.coq_processRequest =~= coq_processRequest.
   Proof.
   Admitted.
-
-  #[global] Hint Resolve coq_processRequest_corres : session_hints.
 
 End CoqNatClient.
 

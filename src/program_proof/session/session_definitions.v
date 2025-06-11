@@ -34,6 +34,12 @@ Qed.
 
 #[global] Opaque CONSTANT.
 
+#[global] Tactic Notation "word" :=
+  lazymatch goal with
+  | [ hG : heapGS ?Σ |- _ ] => let con := fresh "_c" in Tac.revert_until hG; unfold u64_le_CONSTANT; generalize CONSTANT as con; intros; word
+  | _ => word
+  end.
+
 Module _Data.
 
   Definition t : Type :=
@@ -71,7 +77,7 @@ End _Data.
 
 #[local] Tactic Notation "tac_IntoValForType" :=
   let tv := lazymatch goal with [ |- IntoValForType (tuple_of ?tv) _ ] => tv end in
-  unfold tuple_of, tv, _Data.t; simpl; repeat split; auto.
+  unfold tuple_of, tv, _Data.t; simpl; repeat split; ss!.
 
 Module Operation.
 
@@ -112,7 +118,7 @@ Module Operation.
     tac_val_t.
   Qed.
 
-  #[global] Hint Resolve val_t : core.
+  #[global] Hint Resolve val_t : session_hints.
 
   #[global] Instance Session_IntoValForType
     : IntoValForType (tuple_of tv) (struct.t SessionServer.Operation).
@@ -218,7 +224,7 @@ Module Message.
     tac_val_t.
   Qed.
 
-  #[global] Hint Resolve val_t : core.
+  #[global] Hint Resolve val_t : session_hints.
 
   #[global] Instance Session_IntoValForType
     : IntoValForType (tuple_of tv) (struct.t SessionServer.Message).
@@ -229,7 +235,7 @@ Module Message.
   #[global] Instance Client_IntoValForType
     : IntoValForType (tuple_of tv) (struct.t SessionClient.Message).
   Proof.
-    unfold tuple_of. unfold tv. unfold _Data.t. simpl. constructor; auto. simpl. repeat split; auto.
+    tac_IntoValForType.
   Qed.
 
   Section ADD_ON.
@@ -292,7 +298,7 @@ Module Server.
     tac_val_t.
   Qed.
 
-  #[global] Hint Resolve val_t : core.
+  #[global] Hint Resolve val_t : session_hints.
 
   #[global] Instance Session_IntoValForType
     : IntoValForType (tuple_of tv) (struct.t SessionServer.Server).
@@ -358,7 +364,7 @@ Module Client.
     tac_val_t.
   Qed.
 
-  #[global] Hint Resolve val_t : core.
+  #[global] Hint Resolve val_t : session_hints.
 
   #[global] Instance Client_IntoValForType
     : IntoValForType (tuple_of tv) (struct.t SessionClient.Client).
@@ -802,14 +808,14 @@ Proof.
   reflexivity.
 Defined.
 
-#[local] Hint Resolve @Forall_True : core.
+#[local] Hint Resolve @Forall_True : session_hints.
 
 Lemma aux0_equalSlices l1 l2 :
   length l1 = length l2 ->
   coq_equalSlices l1 l2 = true ->
   l1 = l2.
 Proof.
-  rewrite redefine_coq_equalSlices. intros. rewrite <- vectorEq_true_iff; eauto 2.
+  rewrite redefine_coq_equalSlices. intros. rewrite <- vectorEq_true_iff; ss!.
 Qed.
 
 Lemma aux1_equalSlices l1 l2 :
@@ -817,8 +823,7 @@ Lemma aux1_equalSlices l1 l2 :
   coq_equalSlices l1 l2 = false ->
   l1 ≠ l2.
 Proof.
-  rewrite redefine_coq_equalSlices. intros. rewrite <- vectorEq_true_iff; eauto 2.
-  rewrite H0; congruence.
+  rewrite redefine_coq_equalSlices. intros. rewrite <- vectorEq_true_iff; ss!.
 Qed.
 
 Lemma aux2_equalSlices l1 l2 b :
@@ -826,14 +831,14 @@ Lemma aux2_equalSlices l1 l2 b :
   coq_equalSlices l1 l2 = b ->
   coq_equalSlices l2 l1 = b.
 Proof.
-  rewrite redefine_coq_equalSlices. intros. subst b. eapply (eqb_comm (hsEq_A := hsEq_vector (length l1))); eauto.
+  rewrite redefine_coq_equalSlices. intros. subst b. eapply (eqb_comm (hsEq_A := hsEq_vector (length l1))); ss!.
 Qed.
 
 Lemma aux3_equalSlices l :
   coq_equalSlices l l = true.
 Proof.
   change (coq_equalSlices l l) with (eqb (hsEq := hsEq_vector (length l)) l l).
-  rewrite eqb_eq; eauto 2. eapply eqProp_reflexivity; eauto 2.
+  rewrite eqb_eq; ss!.
 Qed.
 
 Lemma aux0_lexicographicCompare l1 l2 l3 :
@@ -842,14 +847,14 @@ Lemma aux0_lexicographicCompare l1 l2 l3 :
   coq_lexicographicCompare l3 l1 = true.
 Proof.
   rewrite redefine_coq_lexicographicCompare.
-  intros. eapply vectorGt_transitive; eauto.
+  intros. eapply vectorGt_transitive with (l2 := l2); ss!.
 Qed.
 
 Lemma aux1_lexicographicCompare l1 l2 :
   length l1 = length l2 -> 
   l1 ≠ l2 ->
   (coq_lexicographicCompare l2 l1 = false <-> coq_lexicographicCompare l1 l2 = true).
-Proof.
+Proof with ss!.
   rewrite redefine_coq_lexicographicCompare. remember (length l1) as len eqn: len_eq.
   pose proof (ltProp_trichotomy (hsOrd := hsOrd_vector len) l1 l2) as claim. simpl in claim.
   symmetry in len_eq. intros len_eq'. symmetry in len_eq'.
@@ -857,18 +862,14 @@ Proof.
   destruct claim as [H_lt | [H_eq | H_gt]].
   - rewrite H_lt. intros NE. split.
     { congruence. }
-    intros l1_gt_l2. contradiction (ltProp_irreflexivity (hsOrd := hsOrd_vector len) l1 l1); eauto.
-    + eapply eqProp_reflexivity; eauto.
-    + eapply ltProp_transitivity with (y := l2); eauto.
-  - intros NE. contradiction NE. clear NE. rewrite <- vectorEq_true_iff; eauto 2.
-    change (eqb (hsEq := hsEq_vector len) l1 l2 = true). rewrite eqb_eq; eauto 2.
+    intros l1_gt_l2. contradiction (ltProp_irreflexivity (hsOrd := hsOrd_vector len) l1 l1)...
+  - intros NE. contradiction NE. clear NE. rewrite <- vectorEq_true_iff...
+    change (eqb (hsEq := hsEq_vector len) l1 l2 = true). rewrite eqb_eq...
   - rewrite H_gt. intros NE. split.
     { congruence. }
     intros _. change (ltb (hsOrd := hsOrd_vector len) l1 l2 = false).
-    rewrite ltb_nlt; eauto 2. intros NLT. change (ltb (hsOrd := hsOrd_vector len) l2 l1 = true) in H_gt.
-    rewrite ltb_lt in H_gt; eauto 2. contradiction (ltProp_irreflexivity (hsOrd := hsOrd_vector len) l1 l1); eauto.
-    + eapply eqProp_reflexivity; eauto.
-    + eapply ltProp_transitivity with (y := l2); eauto.
+    rewrite ltb_nlt... intros NLT. change (ltb (hsOrd := hsOrd_vector len) l2 l1 = true) in H_gt.
+    rewrite ltb_lt in H_gt... contradiction (ltProp_irreflexivity (hsOrd := hsOrd_vector len) l1 l1)...
 Qed.
 
 Lemma aux3_lexicographicCompare l1 l2 :
@@ -877,11 +878,9 @@ Lemma aux3_lexicographicCompare l1 l2 :
   coq_lexicographicCompare l1 l2 = false ->
   l1 = l2.
 Proof.
-  rewrite redefine_coq_lexicographicCompare. intros. rewrite <- vectorEq_true_iff; eauto 2.
-  change (eqb (hsEq := hsEq_vector (length l1)) l1 l2 = true). rewrite eqb_eq; eauto 2.
-  pose proof (ltProp_trichotomy (hsOrd := hsOrd_vector (length l1)) l1 l2) as [H_lt | [H_eq | H_gt]]; eauto.
-  - rewrite <- ltb_lt in H_lt; eauto 2. simpl in *. congruence.
-  - rewrite <- ltb_lt in H_gt; eauto 2. simpl in *. congruence.
+  rewrite redefine_coq_lexicographicCompare. intros. rewrite <- vectorEq_true_iff; ss!.
+  change (eqb (hsEq := hsEq_vector (length l1)) l1 l2 = true). rewrite eqb_eq; ss!.
+  pose proof (ltProp_trichotomy (hsOrd := hsOrd_vector (length l1)) l1 l2) as [H_lt | [H_eq | H_gt]]; ss!.
 Qed.
 
 Lemma aux4_lexicographicCompare l1 l2 :
@@ -889,7 +888,7 @@ Lemma aux4_lexicographicCompare l1 l2 :
   coq_equalSlices l1 l2 = false.
 Proof.
   rewrite redefine_coq_lexicographicCompare. rewrite redefine_coq_equalSlices.
-  intros. eapply vectorGt_implies_not_vectorEq; eauto 2.
+  intros. eapply vectorGt_implies_not_vectorEq; ss!.
 Qed.
 
 Lemma aux5_lexicographicCompare l1 l2 :
@@ -897,7 +896,7 @@ Lemma aux5_lexicographicCompare l1 l2 :
   coq_lexicographicCompare l1 l2 = false.
 Proof.
   rewrite redefine_coq_lexicographicCompare. rewrite redefine_coq_equalSlices.
-  intros. eapply vectorEq_implies_not_vectorGt; eauto 2.
+  intros. eapply vectorEq_implies_not_vectorGt; ss!.
 Qed.
 
 Lemma aux6_lexicographicCompare l1 l2 :
@@ -906,9 +905,8 @@ Lemma aux6_lexicographicCompare l1 l2 :
   (coq_lexicographicCompare l2 l1 = true \/ l1 = l2).
 Proof.
   rewrite redefine_coq_lexicographicCompare. intros.
-  pose proof (ltProp_trichotomy (hsOrd := hsOrd_vector (length l2)) l1 l2) as [H_lt | [H_eq | H_gt]]; eauto.
-  - rewrite <- eqb_eq in H_eq; eauto 2. simpl in *. right; eapply aux0_equalSlices; trivial.
-  - rewrite <- ltb_lt in H_gt; eauto 2. simpl in *. congruence.
+  pose proof (ltProp_trichotomy (hsOrd := hsOrd_vector (length l2)) l1 l2) as [H_lt | [H_eq | H_gt]]; ss!.
+  rewrite <- eqb_eq in H_eq; ss!. simpl in *. right; eapply aux0_equalSlices; trivial.
 Qed.
 
 Definition is_sorted (l: list Operation.t) : Prop :=

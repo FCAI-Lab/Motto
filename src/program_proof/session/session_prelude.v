@@ -39,7 +39,7 @@ End Tac.
   Tac.des; congruence.
 
 #[global] Tactic Notation "ss!" :=
-  Tac.des; try first [congruence | word | tauto].
+  Tac.des; try first [congruence | word | tauto | eauto with session_hints].
 
 #[global] Hint Constructors Forall : session_hints.
 

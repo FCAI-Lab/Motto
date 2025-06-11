@@ -1,4 +1,4 @@
-From Perennial.program_proof.session Require Import session_prelude session_definitions.
+From Perennial.program_proof.session Require Export session_definitions.
 
 Section heap.
 
@@ -716,7 +716,7 @@ Proof.
           { unfold Operation.getVersionVector in VIEW. unfold Operation.getVersionVector. replace (v.(Operation.VersionVector)) with (y.(Operation.VersionVector)) by congruence. right. eapply aux3_equalSlices. }
           { left. eapply SUFFIX. eapply SessionPrelude.lookup_In; eassumption. }
   }
-  { wp_apply (wp_SliceSkip); try word. wp_apply slice.wp_SliceSingleton; eauto. iIntros "%s1 H_s1". replace [Operation.val o] with ( @list.untype _ _ Operation.IntoVal [o]) by reflexivity. iPoseProof (slice_small_split _ pos with "[$H1_s]") as "[H_s1_prefix H_s1_suffix]"; try word. wp_apply (wp_SliceAppendSlice with "[$H_s1 $H_s1_suffix]"). { repeat econstructor; eauto. } assert (drop (uint.nat pos) l = v' :: drop (uint.nat pos + 1)%nat l) as claim6. { eapply SessionPrelude.app_cancel_l with (prefix := take (uint.nat pos) l). rewrite take_drop. replace (uint.nat pos + 1)%nat with (S (uint.nat pos)) by word. rewrite take_drop_middle; trivial. } 
+  { wp_apply (wp_SliceSkip); try word. wp_apply slice.wp_SliceSingleton; ss!. iIntros "%s1 H_s1". replace [Operation.val o] with ( @list.untype _ _ Operation.IntoVal [o]) by reflexivity. iPoseProof (slice_small_split _ pos with "[$H1_s]") as "[H_s1_prefix H_s1_suffix]"; try word. wp_apply (wp_SliceAppendSlice with "[$H_s1 $H_s1_suffix]"). { repeat econstructor; eauto. } assert (drop (uint.nat pos) l = v' :: drop (uint.nat pos + 1)%nat l) as claim6. { eapply SessionPrelude.app_cancel_l with (prefix := take (uint.nat pos) l). rewrite take_drop. replace (uint.nat pos + 1)%nat with (S (uint.nat pos)) by word. rewrite take_drop_middle; trivial. } 
     iIntros "%s2 H_s2". iDestruct "H_s2" as "[[H1_s2 H2_s2] H3_s2]". wp_pures. wp_apply (wp_SliceTake); try word. wp_apply (wp_SliceAppendSlice with "[H_s1_prefix H3_s2 H1_s2 H2_s]"). { repeat econstructor; eauto. } { iFrame. iApply own_slice_cap_take; try word. iFrame. } iIntros "%s3 [H_s3 H1_s2]". wp_pures. iModIntro. iApply "HΦ". iSplitR "".
     - iDestruct "H_s3" as "[H1_s3 H2_s3]". pose proof (SessionPrelude.sortedInsert_unique (well_formed := Operation.well_formed n) l v claim2 claim3 (take (uint.nat pos) l) (drop (uint.nat pos) l) SORTED) as claim5. simpl in claim5. rewrite take_drop in claim5. specialize (claim5 eq_refl). change SessionPrelude.vectorEq with coq_equalSlices in *. change SessionPrelude.vectorGt with coq_lexicographicCompare in *. change SessionPrelude.sortedInsert with coq_sortedInsert in *. destruct (forallb _) as [ | ] eqn: H_forallb; rewrite SessionPrelude.forallb_spec in H_forallb.
       + assert (prefix0' = take (uint.nat pos) ops) as ->.
