@@ -577,10 +577,10 @@ Module ServerSide.
         let focus := server.(Server.PendingOperations) in
         let loop_step (acc: Server.t * u64 * list u64) (elem: Operation.t) : Server.t * u64 * list u64 :=
           let '(server, i, seen) := acc in
-            if coq_oneOffVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector) then
-              (Server.mk server.(Server.Id) server.(Server.NumberOfServers) server.(Server.UnsatisfiedRequests) (coq_maxTS server.(Server.VectorClock) elem.(Operation.VersionVector)) (coq_sortedInsert server.(Server.OperationsPerformed) elem) server.(Server.MyOperations) server.(Server.PendingOperations) server.(Server.GossipAcknowledgements), W64 (uint.Z i + 1), seen ++ [i])
-            else
-              (server, W64 (uint.Z i + 1), seen)
+          if coq_oneOffVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector) then
+            (Server.mk server.(Server.Id) server.(Server.NumberOfServers) server.(Server.UnsatisfiedRequests) (coq_maxTS server.(Server.VectorClock) elem.(Operation.VersionVector)) (coq_sortedInsert server.(Server.OperationsPerformed) elem) server.(Server.MyOperations) server.(Server.PendingOperations) server.(Server.GossipAcknowledgements), W64 (uint.Z i + 1), seen ++ [i])
+          else
+            (server, W64 (uint.Z i + 1), seen)
         in
         fold_left loop_step focus (server, W64 0, [])
       in
