@@ -47,3 +47,7 @@ compiled with OCaml 5.2.1
 
 - Added the file `gossip.v`, `processRequest`, and `u64ToNat` in the directory `src/program_proof/session/`.
 - Completed `session_prelude.v`, `session_definitions.v`, and `versionVector.v`.
+
+### 2025-06-12
+
+- Porting done. It remains to show `Coq_nat -> Coq_u64`.
