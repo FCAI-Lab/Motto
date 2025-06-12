@@ -92,7 +92,7 @@ Definition param2func_corres {A : Type} {A' : Type} {B : Type} {B' : Type} {C : 
   forall b : B, b =~= b' ->
   exists c : C, c =~= c' /\ f a b = c.
 
-Lemma fold_left_option_corres `{Similarity A A'} `{Similarity B B'} (f : A -> B -> A) (f' : A' -> B' -> option A')
+Lemma fold_left_corres `{Similarity A A'} `{Similarity B B'} (f : A -> B -> A) (f' : A' -> B' -> option A')
   (f_corres : param2func_corres f f')
   : param2func_corres (fold_left f) (fold_left_option f').
 Proof.
