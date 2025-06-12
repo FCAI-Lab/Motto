@@ -36,7 +36,8 @@ Module Tac.
       | [ |- context C[ (?X >? ?Y)%Z ] ] => rewrite Z.gtb_ltb;
         let H_OBS := fresh "H_OBS" in destruct (Y <? X) as [ | ] eqn: H_OBS; [rewrite Z.ltb_lt in H_OBS | rewrite Z.ltb_nlt in H_OBS]
       | [ H : _ /\ _ |- _ ] => let H' := fresh H in destruct H as [H H']
-      | [ H : (_, _)%core = (_, _)%core |- _ ] => rewrite pair_inv in H
+      | [ H : (_, _)%core = (_, _)%core |- _ ] => rewrite -> pair_inv in H
+      | [ |- (_, _)%core = (_, _)%core ] => rewrite -> pair_inv
       end
     ).
 

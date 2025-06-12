@@ -65,17 +65,17 @@ Module _Data.
 
 End _Data.
 
-#[local] Tactic Notation "tac_val_ty" :=
+#[global] Tactic Notation "tac_val_ty" :=
   let val := lazymatch goal with [ |- val_ty (?val _) _ ] => val end in
   lazymatch goal with [ v : tuple_of ?tv |- _ ] => unfold tuple_of in v; unfold tv in v; simpl in v; unfold val; simpl end;
   repeat constructor; ss!.
 
-#[local] Tactic Notation "tac_IntoVal" integer( n ) :=
+#[global] Tactic Notation "tac_IntoVal" integer( n ) :=
   intros;
   lazymatch goal with [ v : tuple_of ?tv |- _ ] => unfold tuple_of in v; unfold tv in v; simpl in v; simpl SessionPrelude.value_of; do n destruct v as [v ?]; simpl end;
   repeat lazymatch goal with [ t : Slice.t |- _ ] => destruct t end; auto.
 
-#[local] Tactic Notation "tac_IntoValForType" :=
+#[global] Tactic Notation "tac_IntoValForType" :=
   let tv := lazymatch goal with [ |- IntoValForType (tuple_of ?tv) _ ] => tv end in
   unfold tuple_of, tv, _Data.w; simpl; repeat split; ss!.
 
@@ -1116,7 +1116,18 @@ Qed.
 
 End heap.
 
+Lemma aux_1_le_CONSTANT
+  : uint.Z (W64 1) ≤ CONSTANT.
+Proof.
+  rewrite CONSTANT_unfold. word.
+Qed.
+
 #[global] Hint Extern 5 (val_ty (Operation.val _)) => unfold Operation.val; simpl; repeat constructor; auto : session_hints.
 #[global] Hint Extern 5 (val_ty (Message.val _)) => unfold Message.val; simpl; repeat constructor; auto : session_hints.
 #[global] Hint Extern 5 (val_ty (Server.val _)) => unfold Server.val; simpl; repeat constructor; auto : session_hints.
 #[global] Hint Extern 5 (val_ty (Client.val _)) => unfold Client.val; simpl; repeat constructor; auto : session_hints.
+
+#[global] Hint Extern 5 (length (replicate _ _) = _) => rewrite length_replicate : session_hints.
+#[global] Hint Resolve Forall_CONSTANT_replicate : session_hints.
+#[global] Hint Resolve CONSTANT_coq_maxTs : session_hints.
+#[global] Hint Resolve aux_1_le_CONSTANT : session_hints.
