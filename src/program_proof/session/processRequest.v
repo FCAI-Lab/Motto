@@ -2,6 +2,8 @@ From Perennial.program_proof.session Require Export gossip.
 
 #[local] Hint Constructors Forall : core.
 
+Module SERVER.
+
 Section SERVER.
 
 Import ServerSide SessionServer.
@@ -331,7 +333,11 @@ Qed.
 
 End SERVER.
 
+End SERVER.
+
 #[global] Opaque SessionServer.processRequest.
+
+Module CLIENT.
 
 Section CLIENT.
 
@@ -1052,6 +1058,8 @@ Proof.
     iPureIntro. destruct H_invariant as [? ?]; split; trivial.
   }
 Qed.
+
+End CLIENT.
 
 End CLIENT.
 

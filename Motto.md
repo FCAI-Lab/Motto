@@ -23,7 +23,7 @@ compiled with OCaml 5.2.1
 - [x] `session_definitions.v` (1134 lines)
 - [x] `versionVector.v` (751 lines)
 - [x] `gossip.v` (841 lines)
-- [x] `processRequest.v` (1061 lines)
+- [x] `processRequest.v` (1069 lines)
 - [ ] `u64ToNat.v`
 
 ## Notable Changes
