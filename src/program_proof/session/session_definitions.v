@@ -312,7 +312,7 @@ Module Server.
     (length server.(VectorClock), length server.(GossipAcknowledgements)).
 
   Definition value_bound (server: Server.t) : Prop :=
-    u64_le_CONSTANT server.(Server.Id) /\ u64_le_CONSTANT server.(Server.NumberOfServers) /\ Forall u64_le_CONSTANT server.(Server.VectorClock).
+    u64_le_CONSTANT server.(Server.Id) /\ u64_le_CONSTANT server.(Server.NumberOfServers) /\ Forall u64_le_CONSTANT server.(Server.VectorClock) /\ Forall u64_le_CONSTANT server.(Server.GossipAcknowledgements).
 
   End ADD_ON.
 

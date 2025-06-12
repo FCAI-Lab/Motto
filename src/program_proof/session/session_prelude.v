@@ -46,6 +46,9 @@ End Tac.
 #[global] Tactic Notation "congruence" :=
   Tac.des; congruence.
 
+#[global] Tactic Notation "s!" :=
+  Tac.des; try first [trivial | congruence | word].
+
 #[global] Tactic Notation "ss!" :=
   Tac.des; try first [congruence | word | tauto | eauto with session_hints].
 
