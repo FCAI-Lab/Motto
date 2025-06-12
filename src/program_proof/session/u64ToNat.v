@@ -45,6 +45,8 @@ Instance option_isMonad : isMonad option :=
     end
   }.
 
+Notation "'fail'" := (None) (in custom do_notation at level 10, format "'fail'").
+
 (** End MONAD. *)
 
 (** Section OPTION. *)
@@ -68,19 +70,19 @@ Class Similarity (A : Type) (A' : Type) : Type :=
 
 Infix "=~=" := is_similar_to.
 
-Inductive list_corres {A : Type} {A' : Type} {SIM : Similarity A A'} : Similarity (list A) (list A') :=
+Inductive list_corres {A : Type} {A' : Type} `{Similarity A A'} : Similarity (list A) (list A') :=
   | nil_corres
     : [] =~= []
   | cons_corres (x : A) (x' : A') (xs : list A) (xs' : list A')
-    (head_corres : x =~= x')
-    (tail_corres : xs =~= xs')
+    (x_corres : x =~= x')
+    (xs_corres : xs =~= xs')
     : x :: xs =~= x' :: xs'.
 
 #[local] Hint Constructors list_corres : core.
 
 #[global]
-Instance Similarity_list {A : Type} {A' : Type} (SIM : Similarity A A') : Similarity (list A) (list A') :=
-  @list_corres A A' SIM.
+Instance Similarity_list {A : Type} {A' : Type} (A_SIM : Similarity A A') : Similarity (list A) (list A') :=
+  @list_corres A A' A_SIM.
 
 (** End SIMILARITY. *)
 
@@ -92,13 +94,13 @@ Definition param2func_corres {A : Type} {A' : Type} {B : Type} {B' : Type} {C : 
   forall b : B, b =~= b' ->
   exists c : C, c =~= c' /\ f a b = c.
 
-Lemma fold_left_corres `{Similarity A A'} `{Similarity B B'} (f : A -> B -> A) (f' : A' -> B' -> option A')
+Lemma fold_left_corres {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B -> A) (f' : A' -> B' -> option A')
   (f_corres : param2func_corres f f')
   : param2func_corres (fold_left f) (fold_left_option f').
 Proof.
   red. intros xs' z' y' H_OBS xs xs_corres z z_corres. revert z z' y' z_corres H_OBS.
   induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl; intros.
-  - exists z. split; ss!.
+  - exists z. split; trivial. congruence.
   - destruct (f' z' x') as [_y' | ] eqn: H_y'; try congruence. eapply IH with (z' := _y'); trivial.
     pose proof (f_corres z' x' _y' H_y' z z_corres x x_corres) as (? & H_y & <-); trivial.
 Qed.

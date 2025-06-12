@@ -4,7 +4,7 @@ From Perennial.program_proof.session Require Export gossip.
 
 Module SERVER.
 
-Section PROCESS_CLIENT_REQUEST.
+Section PROCESS_REQUEST.
 
 Import ServerSide SessionServer.
 
@@ -331,7 +331,7 @@ Proof.
   }
 Qed.
 
-End PROCESS_CLIENT_REQUEST.
+End PROCESS_REQUEST.
 
 End SERVER.
 
@@ -339,7 +339,7 @@ End SERVER.
 
 Module CLIENT.
 
-Section PROCESS_CLIENT_REQUEST.
+Section PROCESS_REQUEST.
 
 Import ServerSide ClientSide SessionClient.
 
@@ -1059,7 +1059,7 @@ Proof.
   }
 Qed.
 
-End PROCESS_CLIENT_REQUEST.
+End PROCESS_REQUEST.
 
 End CLIENT.
 
