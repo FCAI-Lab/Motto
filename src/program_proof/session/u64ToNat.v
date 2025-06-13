@@ -410,6 +410,41 @@ Proof.
     exists (f z x). split; ss!.
 Qed.
 
+Ltac des :=
+  autounfold with session_hints in *;
+  repeat (
+    match goal with
+    | [ |- context C[ (?X =? ?Y)%Z ] ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X =? Y) as [ | ] eqn: H_OBS; [rewrite Z.eqb_eq in H_OBS | rewrite Z.eqb_neq in H_OBS]
+    | [ |- context C[ (?X <? ?Y)%Z ] ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X <? Y) as [ | ] eqn: H_OBS; [rewrite Z.ltb_lt in H_OBS | rewrite Z.ltb_nlt in H_OBS]
+    | [ |- context C[ (?X <=? ?Y)%Z ] ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X <=? Y) as [ | ] eqn: H_OBS; [rewrite Z.leb_le in H_OBS | rewrite Z.leb_nle in H_OBS]
+    | [ |- context C[ (?X >=? ?Y)%Z ] ] => rewrite Z.geb_leb;
+      let H_OBS := fresh "H_OBS" in destruct (Y <=? X) as [ | ] eqn: H_OBS; [rewrite Z.leb_le in H_OBS | rewrite Z.leb_nle in H_OBS]
+    | [ |- context C[ (?X >? ?Y)%Z ] ] => rewrite Z.gtb_ltb;
+      let H_OBS := fresh "H_OBS" in destruct (Y <? X) as [ | ] eqn: H_OBS; [rewrite Z.ltb_lt in H_OBS | rewrite Z.ltb_nlt in H_OBS]
+    | [ |- context C[ (?X =? ?Y)%nat ] ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X =? Y)%nat as [ | ] eqn: H_OBS; [rewrite Nat.eqb_eq in H_OBS | rewrite Nat.eqb_neq in H_OBS]
+    | [ |- context C[ (?X <? ?Y)%nat ] ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X <? Y)%nat as [ | ] eqn: H_OBS; [rewrite Nat.ltb_lt in H_OBS | rewrite Nat.ltb_nlt in H_OBS]
+    | [ |- context C[ (?X <=? ?Y)%nat ] ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X <=? Y)%nat as [ | ] eqn: H_OBS; [rewrite Nat.leb_le in H_OBS | rewrite Nat.leb_nle in H_OBS]
+    | [ H : context C[ (?X =? ?Y)%nat ] |- _ ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X =? Y)%nat as [ | ] eqn: H_OBS in H; [rewrite Nat.eqb_eq in H_OBS | rewrite Nat.eqb_neq in H_OBS]
+    | [ H : context C[ (?X <? ?Y)%nat ] |- _ ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X <? Y)%nat as [ | ] eqn: H_OBS in H; [rewrite Nat.ltb_lt in H_OBS | rewrite Nat.ltb_nlt in H_OBS]
+    | [ H : context C[ (?X <=? ?Y)%nat ] |- _ ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X <=? Y)%nat as [ | ] eqn: H_OBS in H; [rewrite Nat.leb_le in H_OBS | rewrite Nat.leb_nle in H_OBS]
+    | [ H : _ /\ _ |- _ ] => let H' := fresh H in destruct H as [H H']
+    | [ H : (_, _)%core = (_, _)%core |- _ ] => rewrite -> Tac.pair_inv in H
+    | [ |- (_, _)%core = (_, _)%core ] => rewrite -> Tac.pair_inv
+    | [ H : exists x, _ |- _ ] => destruct H as [x H]
+    | [ H : is_similar_to _ _ |- _ ] => do 2 red in H
+    | [ |- is_similar_to _ _ ] => do 2 red
+    end
+  ).
+
 Tactic Notation "xintros0" ident( a ) :=
   let r' := fresh "res'" in
   let H_r' := fresh "H_res'" in
@@ -508,10 +543,10 @@ Module Server_nat.
       | [] => do
         ret false
       | h2 :: t2 =>
-        if uint.Z h1 =? uint.Z h2 then do
+        if (h1 =? h2)%nat then do
           coq_lexicographicCompare t1 t2
         else do
-          ret (uint.Z h1 >? uint.Z h2)
+          ret (h2 <? h1)%nat
       end
     end.
 
@@ -519,14 +554,13 @@ Module Server_nat.
     : param2func_corres (M := M) ServerSide.coq_lexicographicCompare coq_lexicographicCompare.
   Proof.
     intros xs' ys' z' H_OBS xs xs_corres ys ys_corres. revert ys ys' ys_corres z' H_OBS.
-    induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl; intros ys ys' ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl; intros.
+    induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl; intros ys ys' ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl; intros; des; try word.
     - exists false; split; s!. apply tryget_pure in H_OBS. ss!.
     - exists false; split; s!. apply tryget_pure in H_OBS. ss!.
     - exists false; split; s!. apply tryget_pure in H_OBS. ss!.
-    - specialize (IH ys ys' ys_corres z'). do 2 red in x_corres, y_corres. revert H_OBS; Tac.des; intros; try word.
-      + eapply IH; trivial.
-      + exists true; split; trivial. apply tryget_pure in H_OBS3. do 2 red; trivial.
-      + exists false; split; trivial. apply tryget_pure in H_OBS3. do 2 red; trivial.
+    - specialize (IH ys ys' ys_corres z'). revert H_OBS; des; intros; try word. eapply IH; trivial.
+    - exists true. split; s!. apply tryget_pure in H_OBS. ss!.
+    - exists false. split; s!. apply tryget_pure in H_OBS. ss!.
   Qed.
 
   Fixpoint coq_maxTS `{isSuperMonad M} (xs : list nat) (ys : list nat) : M (list nat) :=
@@ -640,12 +674,12 @@ Module Server_nat.
     eapply downward_pure. do 2 red in output_corres, canApply_corres |- *. congruence.
   Qed.
 
-(* Use SessionPrelude.deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
+  (* Use SessionPrelude.deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
 
 End Server_nat.
 
 Module Client_nat.
 
-(* TODO: implement Client as nat with SuperMonad *)
+  (* TODO: implement Client as nat with SuperMonad *)
 
 End Client_nat.
