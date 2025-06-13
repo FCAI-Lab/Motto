@@ -368,26 +368,6 @@ Qed.
 
 Module Server_nat.
 
-  Lemma coq_compareVersionVector_unfold (v1 : list u64) (v2 : list u64) :
-    ServerSide.coq_compareVersionVector v1 v2 =
-    match v1 with
-    | [] => do
-      ret true
-    | h1 :: t1 =>
-      match v2 with
-      | [] => do
-        ret true
-      | h2 :: t2 =>
-        if uint.Z h1 <? uint.Z h2 then do
-          ret false
-        else do
-          ServerSide.coq_compareVersionVector t1 t2
-      end
-    end.
-  Proof.
-    destruct v1; trivial.
-  Qed.
-
   Fixpoint coq_compareVersionVector `{isSuperMonad M} (v1 : list nat) (v2 : list nat) : M bool :=
     match v1 with
     | [] => do
@@ -421,26 +401,6 @@ Module Server_nat.
         * do 2 red in x_corres, y_corres. word.
   Qed.
 
-  Lemma coq_lexicographicCompare_unfold (v1 : list u64) (v2 : list u64) :
-    ServerSide.coq_lexicographicCompare v1 v2 =
-    match v1 with
-    | [] => do
-      ret false
-    | h1 :: t1 =>
-      match v2 with
-      | [] => do
-        ret false
-      | h2 :: t2 =>
-        if uint.Z h1 =? uint.Z h2 then do
-          ServerSide.coq_lexicographicCompare t1 t2
-        else do
-          ret (uint.Z h1 >? uint.Z h2)
-      end
-    end.
-  Proof.
-    destruct v1; trivial.
-  Qed.
-
   Fixpoint coq_lexicographicCompare `{isSuperMonad M} (v1 : list nat) (v2 : list nat) : M bool :=
     match v1 with
     | [] => do
@@ -469,6 +429,36 @@ Module Server_nat.
       + eapply IH; trivial.
       + exists true; split; trivial. apply tryget_pure in H_OBS3. do 2 red; trivial.
       + exists false; split; trivial. apply tryget_pure in H_OBS3. do 2 red; trivial.
+  Qed.
+
+  Fixpoint coq_maxTS `{isSuperMonad M} (xs : list nat) (ys : list nat) : M (list nat) :=
+    match xs with
+    | [] => do
+      ret []
+    | x' :: xs' =>
+      match ys with
+      | [] => do
+        ret []
+      | y' :: ys' => do
+        'zs <- coq_maxTS xs' ys';
+        ret (Nat.max x' y' :: zs)
+      end
+    end.
+
+  Lemma coq_maxTS_corres `{isSuperMonad M}
+    : param2func_corres (M := M) ServerSide.coq_maxTS coq_maxTS.
+  Proof.
+    intros xs' ys' z' H_OBS xs xs_corres ys ys_corres. revert ys ys' ys_corres z' H_OBS.
+    induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl; intros ys ys' ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl; intros.
+    - apply tryget_pure in H_OBS. subst z'. exists []. split; ss!.
+    - apply tryget_pure in H_OBS. subst z'. exists []. split; ss!.
+    - apply tryget_pure in H_OBS. subst z'. exists []. split; ss!.
+    - apply tryget_bind in H_OBS. destruct H_OBS as (zs' & H_OBS & H_z').
+      apply tryget_pure in H_z'. unfold ServerSide.coq_maxTwoInts. Tac.des.
+      + specialize (IH ys ys' ys_corres zs' H_OBS). destruct IH as (zs & H_zs & IH).
+        exists (x :: zs). subst z' zs. split; ss!. econstructor; ss!. do 2 red in x_corres, y_corres |- *; word.
+      + specialize (IH ys ys' ys_corres zs' H_OBS). destruct IH as (zs & H_zs & IH).
+        exists (y :: zs). subst z' zs. split; ss!. econstructor; ss!. do 2 red in x_corres, y_corres |- *; word.
   Qed.
 
 (* Use SessionPrelude.deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
