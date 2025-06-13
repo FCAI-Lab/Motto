@@ -216,6 +216,10 @@ Qed.
 
 (** End BASIC_CORRES. *)
 
+#[global]
+Instance Similarity_u64 : Similarity u64 nat :=
+  fun u => fun n => uint.nat u = n /\ uint.Z u <= CONSTANT - 1.
+
 Module Server_u64.
 
 (* TODO: implement Server as u64 with identity monad *)
