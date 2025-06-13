@@ -11,6 +11,10 @@ Class Similarity (A : Type) (A' : Type) : Type :=
 
 Infix "=~=" := is_similar_to.
 
+#[global]
+Instance Similarity_prod {A : Type} {A' : Type} {B : Type} {B' : Type} (FST_SIM : Similarity A A') (SND_SIM : Similarity B B') : Similarity (A * B) (A' * B') :=
+  fun p => fun p' => fst p =~= fst p' /\ snd p =~= snd p'.
+
 Inductive list_corres {A : Type} {A' : Type} `{Similarity A A'} : Similarity (list A) (list A') :=
   | nil_corres
     : [] =~= []
@@ -131,26 +135,13 @@ Class isSuperMonad (M : Type -> Type) `{isMonad M} : Type :=
   ; tryget {A : Type} : M A -> option A
   ; tryget_put_if_true {A : Type} (x : A)
     : tryget (put_if true x) = Some x
+  ; tryget_put_if_false {A : Type} (x : A)
+    : tryget (put_if false x) = None
   ; tryget_pure {A : Type} (x : A)
     : forall z : A, tryget (pure x) = Some z -> x = z
   ; tryget_bind {A : Type} {B : Type} (m : M A) (k : A -> M B)
     : forall z : B, tryget (bind m k) = Some z -> (exists x : A, tryget m = Some x /\ tryget (k x) = Some z)
   }.
-
-#[global, program]
-Instance identity_isSuperMonad : isSuperMonad identity :=
-  { put_if {A} (guard : bool) (x : A) := x
-  ; tryget {A} (m : A) := Some m
-  }.
-Next Obligation.
-  intros. simpl in *. trivial.
-Qed.
-Next Obligation.
-  intros. simpl in *. congruence.
-Qed.
-Next Obligation.
-  intros. cbn in *. exists m. split; trivial.
-Qed.
 
 #[global, program]
 Instance Err_isSuperMonad : isSuperMonad Err :=
@@ -159,6 +150,9 @@ Instance Err_isSuperMonad : isSuperMonad Err :=
   }.
 Next Obligation.
   intros. simpl in *. trivial.
+Qed.
+Next Obligation.
+  intros. simpl in *. congruence.
 Qed.
 Next Obligation.
   intros. simpl in *. congruence.
@@ -176,6 +170,9 @@ Instance option_isSuperMonad : isSuperMonad option :=
   }.
 Next Obligation.
   intros. simpl in *. trivial.
+Qed.
+Next Obligation.
+  intros. unfold pure in *. simpl in *. congruence.
 Qed.
 Next Obligation.
   intros. unfold pure in *. simpl in *. congruence.
@@ -364,6 +361,15 @@ Proof.
     pose proof (f_corres z' x' _y' H_OBS z z_corres x x_corres) as (y & H_y & <-); trivial.
 Qed.
 
+Lemma zip_corres {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (xs : list A) (xs' : list A') (ys : list B) (ys' : list B')
+  (xs_corres : xs =~= xs')
+  (ys_corres : ys =~= ys')
+  : zip xs ys =~= zip xs' ys'.
+Proof.
+  revert ys ys' ys_corres. induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl in *; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; eauto.
+  econstructor; ss!. split; trivial.
+Qed.
+
 (** End BASIC_CORRES. *)
 
 Module Server_nat.
@@ -460,6 +466,22 @@ Module Server_nat.
       + specialize (IH ys ys' ys_corres zs' H_OBS). destruct IH as (zs & H_zs & IH).
         exists (y :: zs). subst z' zs. split; ss!. econstructor; ss!. do 2 red in x_corres, y_corres |- *; word.
   Qed.
+
+  #[local] Arguments bind : simpl never.
+  #[local] Arguments pure : simpl never.
+
+  Definition coq_oneOffVersionVector `{isSuperMonad M} (v1 : list nat) (v2 : list nat) : M bool :=
+    let loop_step (acc : bool * bool) (elem : nat * nat) : M (bool * bool)%type :=
+      let '(e1, e2) := elem in
+      let '(output, canApply) := acc in
+      if canApply && (e1 + 1 =? e2)%nat then do
+        ret (output, false)
+      else do
+        ret ((e2 <=? e1)%nat && output, canApply)
+    in
+    do
+    '(output, canApply) <- fold_left' loop_step (zip v1 v2) (true, true);
+    ret (output && negb canApply).
 
 (* Use SessionPrelude.deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
 

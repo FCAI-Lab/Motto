@@ -480,8 +480,8 @@ Module ServerSide.
 
   Definition coq_oneOffVersionVector (v1: list u64) (v2: list u64) : bool :=
     let loop_step (acc: bool * bool) (element: u64 * u64) : bool * bool :=
-      let (e1, e2) := element in
-      let (output, canApply) := acc in
+      let '(e1, e2) := element in
+      let '(output, canApply) := acc in
       if canApply && (uint.Z (w64_word_instance.(word.add) e1 (W64 1)) =? uint.Z e2) then
         (output, false)
       else if uint.Z e1 >=? uint.Z e2 then
@@ -489,7 +489,7 @@ Module ServerSide.
       else 
         (false, canApply)
     in
-    let (output, canApply) := fold_left loop_step (zip v1 v2) (true, true) in
+    let '(output, canApply) := fold_left loop_step (zip v1 v2) (true, true) in
     output && negb canApply.
 
   Fixpoint coq_equalSlices (s1: list u64) (s2: list u64) : bool :=
