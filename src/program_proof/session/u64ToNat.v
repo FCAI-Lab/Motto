@@ -123,7 +123,7 @@ Fixpoint fold_left' {M : Type -> Type} `{isMonad M} {A : Type} {B : Type} (f : A
   end.
 
 Class isSuperMonad (M : Type -> Type) `{isMonad M} : Type :=
-  { put_if {A : Type} : bool -> A -> M A
+  { put_if {A : Type} (guard : bool) : A -> M A
   ; tryget {A : Type} : M A -> option A
   ; tryget_put_if {A : Type} (x : A)
     : tryget (put_if true x) = Some x
@@ -226,11 +226,15 @@ Qed.
 
 Module Server_u64.
 
+(* TODO *)
+
 (* Use deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
 
 End Server_u64.
 
 Module Server_nat.
+
+(* TODO *)
 
 (* Use deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
 
@@ -238,8 +242,12 @@ End Server_nat.
 
 Module Client_u64.
 
+(* TODO *)
+
 End Client_u64.
 
 Module Client_nat.
+
+(* TODO *)
 
 End Client_nat.
