@@ -218,7 +218,7 @@ Qed.
 
 Module Server_u64.
 
-(* TODO: implemen Server as u64 with identity monad *)
+(* TODO: implement Server as u64 with identity monad *)
 
 (* Use deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
 
@@ -226,7 +226,7 @@ End Server_u64.
 
 Module Server_nat.
 
-(* TODO: implemen Server as nat with SuperMonad *)
+(* TODO: implement Server as nat with SuperMonad *)
 
 (* Use deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
 
@@ -234,12 +234,12 @@ End Server_nat.
 
 Module Client_u64.
 
-(* TODO: implemen Server as u64 with identity monad *)
+(* TODO: implement Client as u64 with identity monad *)
 
 End Client_u64.
 
 Module Client_nat.
 
-(* TODO: implemen Server as nat with SuperMonad *)
+(* TODO: implement Client as nat with SuperMonad *)
 
 End Client_nat.
