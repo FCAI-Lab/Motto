@@ -366,8 +366,9 @@ Lemma zip_corres {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'
   (ys_corres : ys =~= ys')
   : zip xs ys =~= zip xs' ys'.
 Proof.
-  revert ys ys' ys_corres. induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl in *; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; eauto.
-  econstructor; ss!. split; trivial.
+  revert ys ys' ys_corres.
+  induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl in *; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; eauto.
+  econstructor; [split; trivial | ss!].
 Qed.
 
 (** End BASIC_CORRES. *)
