@@ -125,8 +125,10 @@ Fixpoint fold_left' {M : Type -> Type} `{isMonad M} {A : Type} {B : Type} (f : A
 Class isSuperMonad (M : Type -> Type) `{isMonad M} : Type :=
   { put_if {A : Type} (guard : bool) : A -> M A
   ; tryget {A : Type} : M A -> option A
-  ; tryget_put_if {A : Type} (x : A)
+  ; tryget_put_if_true {A : Type} (x : A)
     : tryget (put_if true x) = Some x
+  ; tryget_put_if_false {A : Type} (x : A)
+    : tryget (put_if false x) = None
   ; tryget_pure {A : Type} (x : A)
     : forall z : A, tryget (pure x) = Some z -> x = z
   ; tryget_bind {A : Type} {B : Type} (m : M A) (k : A -> M B)
@@ -138,6 +140,9 @@ Instance Err_isSuperMonad : isSuperMonad Err :=
   { put_if {A} (guard : bool) (x : A) := (guard, x)
   ; tryget {A} (m : Err A) := if m.1 then Some m.2 else None
   }.
+Next Obligation.
+  intros. simpl in *. trivial.
+Qed.
 Next Obligation.
   intros. simpl in *. trivial.
 Qed.
@@ -159,27 +164,14 @@ Next Obligation.
   intros. simpl in *. trivial.
 Qed.
 Next Obligation.
-  intros. unfold pure in *. simpl in *. congruence.
-Qed.
-Next Obligation.
-  intros. cbn in *. destruct m as [x | ]; simpl in *; try congruence.
-  exists x. split; trivial.
-Qed.
-
-#[global, program]
-Instance identity_isSuperMonad : isSuperMonad identity :=
-  { put_if {A} (guard : bool) (x : A) := x 
-  ; tryget {A} (m : identity A) := Some m
-  }.
-Next Obligation.
   intros. simpl in *. trivial.
 Qed.
 Next Obligation.
   intros. unfold pure in *. simpl in *. congruence.
 Qed.
 Next Obligation.
-  intros. cbn in *.
-  exists m. split; trivial.
+  intros. cbn in *. destruct m as [x | ]; simpl in *; try congruence.
+  exists x. split; trivial.
 Qed.
 
 (** End MONAD. *)
@@ -226,7 +218,7 @@ Qed.
 
 Module Server_u64.
 
-(* TODO *)
+(* TODO: implemen Server as u64 with identity monad *)
 
 (* Use deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
 
@@ -234,7 +226,7 @@ End Server_u64.
 
 Module Server_nat.
 
-(* TODO *)
+(* TODO: implemen Server as nat with SuperMonad *)
 
 (* Use deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
 
@@ -242,12 +234,12 @@ End Server_nat.
 
 Module Client_u64.
 
-(* TODO *)
+(* TODO: implemen Server as u64 with identity monad *)
 
 End Client_u64.
 
 Module Client_nat.
 
-(* TODO *)
+(* TODO: implemen Server as nat with SuperMonad *)
 
 End Client_nat.
