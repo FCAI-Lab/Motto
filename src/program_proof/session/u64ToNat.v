@@ -220,7 +220,7 @@ Module Server_u64.
 
 (* TODO: implement Server as u64 with identity monad *)
 
-(* Use deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
+(* Use SessionPrelude.deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
 
 End Server_u64.
 
@@ -228,7 +228,7 @@ Module Server_nat.
 
 (* TODO: implement Server as nat with SuperMonad *)
 
-(* Use deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
+(* Use SessionPrelude.deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
 
 End Server_nat.
 
