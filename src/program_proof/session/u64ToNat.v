@@ -81,7 +81,6 @@ Notation "'do' m" := m : monad_scope.
 Notation "'do' m" := (m : monad).
 
 Notation "x '<-' m1 ';' m2" := (m1 >>= fun x => m2) (in custom do_notation at level 0, x ident, m1 constr, m2 custom do_notation at level 10, format "x  '<-'  m1 ';' '//' m2").
-Notation "'let' x ':=' t ';' m" := (let x := t in m) (in custom do_notation at level 0, x pattern, t constr, m custom do_notation at level 10, format "'let'  x  ':='  t ';' '//' m").
 Notation "''' x '<-' m1 ';' m2" := (m1 >>= fun 'x => m2) (in custom do_notation at level 0, x pattern, m1 constr, m2 custom do_notation at level 10, format "''' x  '<-'  m1 ';' '//' m2").
 Notation "m1 ';' m2" := (m1 >>= fun _ => m2) (in custom do_notation at level 0, m1 constr, m2 custom do_notation at level 10, format "m1 ';' '//' m2").
 Notation "'ret' t" := (pure t) (in custom do_notation at level 10, t constr, format "'ret'  t").
@@ -373,6 +372,98 @@ Qed.
 
 (** End BASIC_CORRES. *)
 
+Definition downward `{isSuperMonad M} {R : Type} {R' : Type} `{Similarity R R'} (m : identity R) (m' : M R') : Prop :=
+  forall r' : R',
+  tryget m' = Some r' ->
+  exists r : R, r =~= r' /\ m = r.
+
+Notation "'DOWNWARD' tgt '====================' src" := (downward tgt src) (at level 100, no associativity, format "'//' 'DOWNWARD' '//' tgt  '//' '====================' '//' src").
+
+Lemma downward_bind `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (m : identity A) (m' : M A') (k : A -> identity B) (k' : A' -> M B')
+  (m_corres : downward m m')
+  (k_corres : forall x : A, forall x' : A', x =~= x' -> downward (k x) (k' x'))
+  : downward (bind m k) (bind m' k').
+Proof.
+  unfold downward in *. intros r' H_r'.
+  apply tryget_bind in H_r'. destruct H_r' as (x' & H_r' & H_x').
+  eapply k_corres with (x' := x'); trivial.
+  pose proof (m_corres x' H_r') as (x & H_x & H_m); congruence. 
+Qed.
+
+Lemma downward_pure `{isSuperMonad M} {R : Type} {R' : Type} `{Similarity R R'} (x : R) (x' : R')
+  (x_corres : x =~= x')
+  : downward (pure (M := identity) x) (pure (M := M) x').
+Proof.
+  red. intros r' H_r'. apply tryget_pure in H_r'. exists x. split; ss!.
+Qed.
+
+Lemma downward_fold_left `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B -> identity A) (f' : A' -> B' -> M A') (xs : list B) (xs' : list B') (z : A) (z' : A')
+  (f_corres : param2func_corres f f')
+  (xs_corres : xs =~= xs')
+  (z_corres : z =~= z')
+  : downward (fold_left f xs z) (fold_left' f' xs' z').
+Proof.
+  revert z z' z_corres. induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl; intros.
+  - eapply downward_pure; trivial.
+  - change (fold_left f xs (f z x)) with (bind (M := identity) (isMonad := identity_isMonad) (f z x) (fun y : A => pure (fold_left f xs y))).
+    eapply downward_bind; eauto. intros r' H_r'. pose proof (f_corres z' x' r' H_r' z z_corres x x_corres) as (r & H_r & H_c). subst r.
+    exists (f z x). split; ss!.
+Qed.
+
+Tactic Notation "xintros0" ident( a ) :=
+  let r' := fresh "res'" in
+  let H_r' := fresh "H_res'" in
+  intros r' H_r';
+  revert r' H_r';
+  lazymatch goal with
+  | [ |- forall r', tryget ?m' = Some r' -> exists r, r =~= r' /\ ?m = r ] => change (downward m m')
+  end.
+
+Tactic Notation "xintros1" ident( a ) :=
+  let x := fresh a in
+  let x' := fresh a "'" in
+  let x_corres := fresh a "_corres" in
+  let r' := fresh "res'" in
+  let H_r' := fresh "H_res'" in
+  intros x' r' H_r' x x_corres;
+  revert r' H_r';
+  lazymatch goal with
+  | [ |- forall r', tryget ?m' = Some r' -> exists r, r =~= r' /\ ?m = r ] => change (downward m m')
+  end.
+
+Tactic Notation "xintros2" ident( a ) ident( b ) :=
+  let x := fresh a in
+  let x' := fresh a "'" in
+  let x_corres := fresh a "_corres" in
+  let y := fresh b in
+  let y' := fresh b "'" in
+  let y_corres := fresh b "_corres" in
+  let r' := fresh "res'" in
+  let H_r' := fresh "H_res'" in
+  intros x' y' r' H_r' x x_corres y y_corres;
+  revert r' H_r';
+  lazymatch goal with
+  | [ |- forall r', tryget ?m' = Some r' -> exists r, r =~= r' /\ ?m = r ] => change (downward m m')
+  end.
+
+Tactic Notation "xintros3" ident( a ) ident( b ) ident( c ) :=
+  let x := fresh a in
+  let x' := fresh a "'" in
+  let x_corres := fresh a "_corres" in
+  let y := fresh b in
+  let y' := fresh b "'" in
+  let y_corres := fresh b "_corres" in
+  let z := fresh c in
+  let z' := fresh c "'" in
+  let z_corres := fresh c "_corres" in
+  let r' := fresh "res'" in
+  let H_r' := fresh "H_res'" in
+  intros x' y' z' r' H_r' x x_corres y y_corres z z_corres;
+  revert r' H_r';
+  lazymatch goal with
+  | [ |- forall r', tryget ?m' = Some r' -> exists r, r =~= r' /\ ?m = r ] => change (downward m m')
+  end.
+
 Module Server_nat.
 
   Fixpoint coq_compareVersionVector `{isSuperMonad M} (v1 : list nat) (v2 : list nat) : M bool :=
@@ -471,6 +562,26 @@ Module Server_nat.
   #[local] Arguments bind : simpl never.
   #[local] Arguments pure : simpl never.
 
+  Lemma coq_oneOffVersionVector_u64 :
+    ServerSide.coq_oneOffVersionVector =
+    fun v1 : list u64 => fun v2 : list u64 => do
+    let loop_step (acc : bool * bool) (elem : u64 * u64) : identity (bool * bool) :=
+      let '(e1, e2) := elem in
+      let '(output, canApply) := acc in
+      if canApply && (uint.Z (w64_word_instance.(word.add) e1 (W64 1)) =? uint.Z e2) then do
+        ret (output, false)
+      else if uint.Z e1 >=? uint.Z e2 then do
+        ret (output, canApply)
+      else do
+        ret (false, canApply)
+    in
+    do
+    '(output, canApply) <- fold_left loop_step (zip v1 v2) (true, true);
+    ret (output && negb canApply).
+  Proof.
+    reflexivity.
+  Defined.
+
   Definition coq_oneOffVersionVector `{isSuperMonad M} (v1 : list nat) (v2 : list nat) : M bool :=
     let loop_step (acc : bool * bool) (elem : nat * nat) : M (bool * bool)%type :=
       let '(e1, e2) := elem in
@@ -483,6 +594,51 @@ Module Server_nat.
     do
     '(output, canApply) <- fold_left' loop_step (zip v1 v2) (true, true);
     ret (output && negb canApply).
+
+  Lemma coq_oneOffVersionVector_corres `{isSuperMonad M}
+    : param2func_corres (M := M) ServerSide.coq_oneOffVersionVector coq_oneOffVersionVector.
+  Proof.
+    rewrite coq_oneOffVersionVector_u64. unfold coq_oneOffVersionVector.
+    xintros2 v1 v2. eapply downward_bind.
+    { eapply downward_fold_left.
+      - clear. xintros2 acc elem. destruct acc as [output canApply], acc' as [output' canApply']; simpl in *. destruct elem as [e1 e2], elem' as [e1' e2']; simpl in *.
+        destruct acc_corres as [output_corres canApply_corres]; simpl in *. destruct elem_corres as [e1_corres e2_corres]; simpl in *.
+        do 2 red in output_corres, canApply_corres, e1_corres, e2_corres. red; Tac.des; intros.
+        + destruct canApply' as [ | ]; simpl in *; (destruct (e1' + 1 =? e2')%nat as [ | ] eqn: H_OBS'; [rewrite Nat.eqb_eq in H_OBS' | rewrite Nat.eqb_neq in H_OBS']); apply tryget_pure in H1; try word; subst.
+          * exists (output', true). split; simpl.
+            { split; simpl; do 2 red; trivial. symmetry. replace (uint.nat e2 <=? uint.nat e1)%nat with true by now symmetry; rewrite Nat.leb_le; word. eapply andb_true_l. }
+            { rewrite -> CONSTANT_unfold in *. word. }
+          * exists (output', false). split; simpl.
+            { split; simpl; do 2 red; trivial. symmetry. replace (uint.nat e2 <=? uint.nat e1)%nat with true by now symmetry; rewrite Nat.leb_le; word. eapply andb_true_l. }
+            { rewrite -> CONSTANT_unfold in *. word. }
+        + destruct canApply' as [ | ]; simpl in *; (destruct (e1' + 1 =? e2')%nat as [ | ] eqn: H_OBS'; [rewrite Nat.eqb_eq in H_OBS' | rewrite Nat.eqb_neq in H_OBS']); apply tryget_pure in H1; try word; subst.
+          * exists (output', false). split; simpl.
+            { split; simpl; do 2 red; trivial. }
+            { trivial. }
+          * exists (false, false). split; simpl.
+            { split; simpl; do 2 red; trivial. replace (uint.nat e2 <=? uint.nat e1)%nat with false by now symmetry; rewrite Nat.leb_nle; word. reflexivity. }
+            { trivial. }
+        + destruct canApply' as [ | ]; simpl in *; (destruct (e1' + 1 =? e2')%nat as [ | ] eqn: H_OBS'; [rewrite Nat.eqb_eq in H_OBS' | rewrite Nat.eqb_neq in H_OBS']); apply tryget_pure in H1; try word; subst.
+          * exists (output', true). split; simpl.
+            { split; simpl; do 2 red; trivial. symmetry. replace (uint.nat e2 <=? uint.nat e1)%nat with true by now symmetry; rewrite Nat.leb_le; word. eapply andb_true_l. }
+            { rewrite -> CONSTANT_unfold in *. trivial. }
+          * exists (output', false). split; simpl.
+            { split; simpl; do 2 red; trivial. symmetry. replace (uint.nat e2 <=? uint.nat e1)%nat with true by now symmetry; rewrite Nat.leb_le; word. eapply andb_true_l. }
+            { rewrite -> CONSTANT_unfold in *. trivial. }
+        + destruct canApply' as [ | ]; simpl in *; (destruct (e1' + 1 =? e2')%nat as [ | ] eqn: H_OBS'; [rewrite Nat.eqb_eq in H_OBS' | rewrite Nat.eqb_neq in H_OBS']); apply tryget_pure in H1; try word; subst.
+          * exists (false, true). split; simpl.
+            { split; simpl; do 2 red; trivial. symmetry. replace (uint.nat e2 <=? uint.nat e1)%nat with false by now symmetry; rewrite Nat.leb_nle; word. eapply andb_true_l. }
+            { rewrite -> CONSTANT_unfold in *. trivial. }
+          * exists (false, false). split; simpl.
+            { split; simpl; do 2 red; trivial. symmetry. replace (uint.nat e2 <=? uint.nat e1)%nat with false by now symmetry; rewrite Nat.leb_nle; word. eapply andb_true_l. }
+            { rewrite -> CONSTANT_unfold in *. trivial. }
+      - eapply zip_corres; trivial.
+      - split; simpl; do 2 red; trivial.
+    }
+    intros [output canApply] [output' canApply']; simpl in *.
+    intros [output_corres canApply_corres]; simpl in *.
+    eapply downward_pure. do 2 red in output_corres, canApply_corres |- *. congruence.
+  Qed.
 
 (* Use SessionPrelude.deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
 
