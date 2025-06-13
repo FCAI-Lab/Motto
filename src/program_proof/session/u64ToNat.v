@@ -25,6 +25,27 @@ Inductive list_corres {A : Type} {A' : Type} `{Similarity A A'} : Similarity (li
 Instance Similarity_list {A : Type} {A' : Type} (A_SIM : Similarity A A') : Similarity (list A) (list A') :=
   @list_corres A A' A_SIM.
 
+Inductive option_corres {A : Type} {A' : Type} {SIM : Similarity A A'} : Similarity (option A) (option A') :=
+  | None_corres
+    : None =~= None
+  | Some_corres (x : A) (x' : A')
+    (x_corres : x =~= x')
+    : Some x =~= Some x'.
+
+#[local] Hint Constructors option_corres : core.
+
+#[global]
+Instance Similarity_option {A : Type} {A' : Type} (SIM : Similarity A A') : Similarity (option A) (option A') :=
+  @option_corres A A' SIM.
+
+#[global]
+Instance Similarity_bool : Similarity bool bool :=
+  @eq bool.
+
+#[global]
+Instance Similarity_nat : Similarity nat nat :=
+  @eq nat.
+
 (** End SIMILARITY. *)
 
 (** Section MONAD. *)
@@ -102,21 +123,24 @@ Fixpoint fold_left' {M : Type -> Type} `{isMonad M} {A : Type} {B : Type} (f : A
   end.
 
 Class isSuperMonad (M : Type -> Type) `{isMonad M} : Type :=
-  { plusplus : nat -> M nat
+  { put_if {A : Type} : bool -> A -> M A
   ; tryget {A : Type} : M A -> option A
+  ; tryget_put_if {A : Type} (x : A)
+    : tryget (put_if true x) = Some x
   ; tryget_pure {A : Type} (x : A)
     : forall z : A, tryget (pure x) = Some z -> x = z
   ; tryget_bind {A : Type} {B : Type} (m : M A) (k : A -> M B)
     : forall z : B, tryget (bind m k) = Some z -> (exists x : A, tryget m = Some x /\ tryget (k x) = Some z)
   }.
 
-Notation "t '++'" := (plusplus t) (in custom do_notation at level 1, t constr, format "t '++'").
-
 #[global, program]
 Instance Err_isSuperMonad : isSuperMonad Err :=
-  { plusplus (n : nat) := (Z.ltb (n + 1) CONSTANT, (n + 1)%nat)
+  { put_if {A} (guard : bool) (x : A) := (guard, x)
   ; tryget {A} (m : Err A) := if m.1 then Some m.2 else None
   }.
+Next Obligation.
+  intros. simpl in *. trivial.
+Qed.
 Next Obligation.
   intros. simpl in *. congruence.
 Qed.
@@ -128,15 +152,34 @@ Qed.
 
 #[global, program]
 Instance option_isSuperMonad : isSuperMonad option :=
-  { plusplus (n : nat) := if Z.ltb (n + 1) CONSTANT then Some (n + 1)%nat else None
+  { put_if {A} (guard : bool) (x : A) := if guard then Some x else None
   ; tryget {A} (m : option A) := m
   }.
+Next Obligation.
+  intros. simpl in *. trivial.
+Qed.
 Next Obligation.
   intros. unfold pure in *. simpl in *. congruence.
 Qed.
 Next Obligation.
   intros. cbn in *. destruct m as [x | ]; simpl in *; try congruence.
   exists x. split; trivial.
+Qed.
+
+#[global, program]
+Instance identity_isSuperMonad : isSuperMonad identity :=
+  { put_if {A} (guard : bool) (x : A) := x 
+  ; tryget {A} (m : identity A) := Some m
+  }.
+Next Obligation.
+  intros. simpl in *. trivial.
+Qed.
+Next Obligation.
+  intros. unfold pure in *. simpl in *. congruence.
+Qed.
+Next Obligation.
+  intros. cbn in *.
+  exists m. split; trivial.
 Qed.
 
 (** End MONAD. *)
@@ -180,3 +223,23 @@ Proof.
 Qed.
 
 (** End BASIC_CORRES. *)
+
+Module Server_u64.
+
+(* Use deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
+
+End Server_u64.
+
+Module Server_nat.
+
+(* Use deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
+
+End Server_nat.
+
+Module Client_u64.
+
+End Client_u64.
+
+Module Client_nat.
+
+End Client_nat.

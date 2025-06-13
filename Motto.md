@@ -50,4 +50,4 @@ compiled with OCaml 5.2.1
 
 ### 2025-06-12
 
-- Porting done. It remains to show `Coq_nat -> Coq_u64`.
+- It remains to show `Coq_nat -> Coq_u64`.
