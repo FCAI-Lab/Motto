@@ -1053,8 +1053,8 @@ Module Server_nat.
         server.(Server.PendingOperations)
         (server, W64 0, []);
       let '(server, _, seen) := TMP in do
-      let '(_, _, output) := fold_left (fun acc : nat * nat * list Operation.t => fun elem : Operation.t => let '(i, j, output) := acc in match seen !! j with Some i' => if (i =? uint.nat i')%nat then ((i + 1)%nat, (j + 1)%nat, output) else ((i + 1)%nat, j, output ++ [elem]) | None => ((i + 1)%nat, j, output ++ [elem]) end) server.(Server.PendingOperations) (0%nat, 0%nat, []) in do
-      ret
+      ret (
+        let '(_, _, output) := fold_left (fun acc : nat * nat * list Operation.t => fun elem : Operation.t => let '(i, j, output) := acc in match seen !! j with Some i' => if (i =? uint.nat i')%nat then ((i + 1)%nat, (j + 1)%nat, output) else ((i + 1)%nat, j, output ++ [elem]) | None => ((i + 1)%nat, j, output ++ [elem]) end) server.(Server.PendingOperations) (0%nat, 0%nat, []) in do
         {|
           Server.Id := server.(Server.Id);
           Server.NumberOfServers := server.(Server.NumberOfServers);
@@ -1064,7 +1064,8 @@ Module Server_nat.
           Server.MyOperations := server.(Server.MyOperations);
           Server.PendingOperations := output;
           Server.GossipAcknowledgements := server.(Server.GossipAcknowledgements);
-        |}.
+        |}
+      ).
   Proof.
     reflexivity.
   Defined.
