@@ -1001,6 +1001,89 @@ Module Server_nat.
 
   Section refine_coq_receiveGossip.
 
+  Definition coq_receiveGossip_u64 :
+    ServerSide.coq_receiveGossip =
+    fun server : Server.t => fun request : Message.t => do
+    if (length request.(Message.S2S_Gossip_Operations) =? 0)%nat then do
+      ret server
+    else do
+      'loop1 <- fold_left
+        ( fun acc : Server.t => fun elem : Operation.t => do
+          'server <- acc;
+          if ServerSide.coq_oneOffVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector) then do
+            ret
+              {|
+                Server.Id := server.(Server.Id);
+                Server.NumberOfServers := server.(Server.NumberOfServers);
+                Server.UnsatisfiedRequests := server.(Server.UnsatisfiedRequests);
+                Server.VectorClock := ServerSide.coq_maxTS server.(Server.VectorClock) elem.(Operation.VersionVector);
+                Server.OperationsPerformed := ServerSide.coq_sortedInsert server.(Server.OperationsPerformed) elem;
+                Server.MyOperations := server.(Server.MyOperations);
+                Server.PendingOperations := server.(Server.PendingOperations);
+                Server.GossipAcknowledgements := server.(Server.GossipAcknowledgements);
+              |}
+          else if negb (ServerSide.coq_compareVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector)) then do
+            ret
+              {|
+                Server.Id := server.(Server.Id);
+                Server.NumberOfServers := server.(Server.NumberOfServers);
+                Server.UnsatisfiedRequests := server.(Server.UnsatisfiedRequests);
+                Server.VectorClock := server.(Server.VectorClock);
+                Server.OperationsPerformed := server.(Server.OperationsPerformed);
+                Server.MyOperations := server.(Server.MyOperations);
+                Server.PendingOperations := ServerSide.coq_sortedInsert server.(Server.PendingOperations) elem;
+                Server.GossipAcknowledgements := server.(Server.GossipAcknowledgements);
+              |}
+          else do
+            ret server
+        )
+        request.(Message.S2S_Gossip_Operations)
+        server;
+      let server := loop1 in do
+      'loop2 <- fold_left
+        ( fun acc : Server.t * u64 * list u64 => fun elem : Operation.t =>
+          let '(server, i, seen) := acc in do
+          if ServerSide.coq_oneOffVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector) then do
+            ret (Server.mk server.(Server.Id) server.(Server.NumberOfServers) server.(Server.UnsatisfiedRequests) (ServerSide.coq_maxTS server.(Server.VectorClock) elem.(Operation.VersionVector)) (ServerSide.coq_sortedInsert server.(Server.OperationsPerformed) elem) server.(Server.MyOperations) server.(Server.PendingOperations) server.(Server.GossipAcknowledgements), W64 (uint.Z i + 1), seen ++ [i])
+          else do
+            ret (server, W64 (uint.Z i + 1), seen)
+        )
+        server.(Server.PendingOperations)
+        (server, W64 0, []);
+      let '(server, _, seen) := loop2 in do
+      'loop3 <- fold_left
+        ( fun acc : nat * nat * list Operation.t => fun elem : Operation.t =>
+          let '(i, j, output) := acc in
+          match seen !! j with
+          | Some i' => do
+            if (i =? uint.nat i')%nat then do
+              ret ((i + 1)%nat, (j + 1)%nat, output)
+            else do
+              ret ((i + 1)%nat, j, output ++ [elem])
+          | None => do
+            ret ((i + 1)%nat, j, output ++ [elem])
+          end
+        )
+        server.(Server.PendingOperations)
+        (0%nat, 0%nat, []);
+      let '(_, _, output) := loop3 in do
+      ret
+        {|
+          Server.Id := server.(Server.Id);
+          Server.NumberOfServers := server.(Server.NumberOfServers);
+          Server.UnsatisfiedRequests := server.(Server.UnsatisfiedRequests);
+          Server.VectorClock := server.(Server.VectorClock);
+          Server.OperationsPerformed := server.(Server.OperationsPerformed);
+          Server.MyOperations := server.(Server.MyOperations);
+          Server.PendingOperations := output;
+          Server.GossipAcknowledgements := server.(Server.GossipAcknowledgements);
+        |}.
+  Proof.
+    reflexivity.
+  Defined.
+
+  Context `{isSuperMonad M}.
+
   (* TODO *)
 
   End refine_coq_receiveGossip.
