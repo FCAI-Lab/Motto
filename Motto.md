@@ -43,11 +43,11 @@ compiled with OCaml 5.2.1
 - Added the nat-version Coq counterpart functions `session_definitions`.
 - Added the file `versionVector.v` in the directory `src/program_proof/session/`. It includes the wp_lemmas relavant to `VersionVector`.
 
-### 2025-06-10
+### 2025-06-11
 
 - Added the file `gossip.v`, `processRequest`, and `u64ToNat` in the directory `src/program_proof/session/`.
 - Completed `session_prelude.v`, `session_definitions.v`, and `versionVector.v`.
 
 ### 2025-06-12
 
-- It remains to show `Coq_nat -> Coq_u64`.
+- Completed the file `gossip.v` and `processRequest`. It remains to show `Coq_nat -> Coq_u64`.
