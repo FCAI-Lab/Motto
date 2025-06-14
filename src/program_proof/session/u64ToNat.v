@@ -779,7 +779,7 @@ Module Server_nat.
   Let coq_oneOffVersionVector_u64 :
     ServerSide.coq_oneOffVersionVector =
     fun v1 : list u64 => fun v2 : list u64 => do
-    let loop_step (acc : bool * bool) (elem : u64 * u64) : identity (bool * bool) :=
+    let loop_step (acc : bool * bool) (elem : u64 * u64) : bool * bool :=
       let '(e1, e2) := elem in
       let '(output, canApply) := acc in
       if canApply && (uint.Z (w64_word_instance.(word.add) e1 (W64 1)) =? uint.Z e2) then do
@@ -971,10 +971,114 @@ Module Server_nat.
 
   End refine_coq_getDataFromOperationLog.
 
+  Section refine_coq_receiveGossip.
+
+  (* TODO *)
+
+  End refine_coq_receiveGossip.
+
+  Section refine_coq_acknowledgeGossip.
+
+  (* TODO *)
+
+  End refine_coq_acknowledgeGossip.
+
+  Section refine_coq_getGossipOperations.
+
+  (* TODO *)
+
+  End refine_coq_getGossipOperations.
+
+  Section refine_coq_processClientRequest.
+
+  (* TODO *)
+
+  End refine_coq_processClientRequest.
+
+  Section refine_coq_processRequest.
+
+  (* TODO *)
+
+  End refine_coq_processRequest.
+
 End Server_nat.
 
 Module Client_nat.
 
-  (* TODO: implement Client as nat with SuperMonad *)
+  Import SessionPrelude.
+
+  Section refine_coq_maxTS.
+
+  Fixpoint coq_maxTS (xs : list nat) (ys : list nat) : list nat :=
+    match xs with
+    | [] => []
+    | x' :: xs' =>
+      match ys with
+      | [] => []
+      | y' :: ys' => Nat.max x' y' :: coq_maxTS xs' ys'
+      end
+    end.
+
+  Lemma coq_maxTS_corres
+    : ServerSide.coq_maxTS =~= coq_maxTS.
+  Proof.
+    intros xs xs' xs_corres; induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; eauto.
+    unfold ServerSide.coq_maxTwoInts. des; econstructor 2; eauto; do 2 red; word.
+  Qed.
+
+  End refine_coq_maxTS.
+
+  Section refine_coq_read.
+
+  Definition coq_read (c : Client'.t) (serverId : nat) : Message'.t :=
+    match c.(Client'.SessionSemantic) with
+    | 0%nat => Message'.mk 0 c.(Client'.Id) serverId 0 (IntoVal_def _Data.w) (replicate c.(Client'.NumberOfServers) 0%nat) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 1%nat => Message'.mk 0 c.(Client'.Id) serverId 0 (IntoVal_def _Data.w) (replicate c.(Client'.NumberOfServers) 0%nat) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 2%nat => Message'.mk 0 c.(Client'.Id) serverId 0 (IntoVal_def _Data.w) (replicate c.(Client'.NumberOfServers) 0%nat) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 3%nat => Message'.mk 0 c.(Client'.Id) serverId 0 (IntoVal_def _Data.w) c.(Client'.ReadVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 4%nat => Message'.mk 0 c.(Client'.Id) serverId 0 (IntoVal_def _Data.w) c.(Client'.WriteVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 5%nat => Message'.mk 0 c.(Client'.Id) serverId 0 (IntoVal_def _Data.w) (coq_maxTS c.(Client'.WriteVersionVector) c.(Client'.ReadVersionVector)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | _ => Message'.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    end.
+
+  (* TODO *)
+
+  End refine_coq_read.
+
+  Section refine_coq_write.
+
+  Definition coq_write (c : Client'.t) (serverId : nat) (value: _Data.w) : Message'.t :=
+    match c.(Client'.SessionSemantic) with
+    | 0%nat => Message'.mk 0 c.(Client'.Id) serverId 1 value (replicate c.(Client'.NumberOfServers) 0%nat) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 1%nat => Message'.mk 0 c.(Client'.Id) serverId 1 value c.(Client'.ReadVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 2%nat => Message'.mk 0 c.(Client'.Id) serverId 1 value c.(Client'.WriteVersionVector) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 3%nat => Message'.mk 0 c.(Client'.Id) serverId 1 value (replicate c.(Client'.NumberOfServers) 0%nat) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 4%nat => Message'.mk 0 c.(Client'.Id) serverId 1 value (replicate c.(Client'.NumberOfServers) 0%nat) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | 5%nat => Message'.mk 0 c.(Client'.Id) serverId 1 value (coq_maxTS c.(Client'.WriteVersionVector) c.(Client'.ReadVersionVector)) 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    | _ => Message'.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
+    end.
+
+  (* TODO *)
+
+  End refine_coq_write.
+
+  Section refine_coq_processRequest.
+
+  Definition coq_processRequest (c : Client'.t) (requestType : nat) (serverId : nat) (value: _Data.w) (ackMessage : Message'.t) : Client'.t * Message'.t :=
+    match requestType with
+    | 0%nat => (c, coq_read c serverId)
+    | 1%nat => (c, coq_write c serverId value)
+    | 2%nat =>
+      match ackMessage.(Message'.S2C_Client_OperationType) with
+      | 0%nat => (Client'.mk c.(Client'.Id) c.(Client'.NumberOfServers) c.(Client'.WriteVersionVector) ackMessage.(Message'.S2C_Client_VersionVector) c.(Client'.SessionSemantic), Message'.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0)
+      | 1%nat => (Client'.mk c.(Client'.Id) c.(Client'.NumberOfServers) ackMessage.(Message'.S2C_Client_VersionVector) c.(Client'.ReadVersionVector) c.(Client'.SessionSemantic), Message'.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0)
+      | _ => (c, Message'.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0)
+      end
+    | _ => (c, Message'.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0)
+    end.
+
+  (* TODO *)
+
+  End refine_coq_processRequest.
 
 End Client_nat.
