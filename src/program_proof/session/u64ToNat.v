@@ -586,7 +586,7 @@ Definition downward `{isSuperMonad M} {R : Type} {R' : Type} `{Similarity R R'} 
   tryget m' = Some r' ->
   exists r : R, r =~= r' /\ m = r.
 
-Notation "'DOWNWARD' tgt '====================' src" := (downward tgt src) (at level 100, no associativity, format "'//' 'DOWNWARD' '//' tgt  '//' '====================' '//' src").
+Notation "'DOWNWARD' src '====================' tgt" := (downward tgt src) (at level 100, no associativity, format "'//' 'DOWNWARD' '//' src  '//' '====================' '//' tgt").
 
 Lemma downward_bind `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (m : identity A) (m' : M A') (k : A -> identity B) (k' : A' -> M B')
   (m_corres : downward m m')
