@@ -40,7 +40,6 @@ compiled with OCaml 5.2.1
 ### 2025-06-10
 
 - Removed the Go function `equalOperations()` from `server.go`.
-- Added the nat-version Coq counterpart functions `session_definitions`.
 - Added the file `versionVector.v` in the directory `src/program_proof/session/`. It includes the wp_lemmas relavant to `VersionVector`.
 
 ### 2025-06-11
