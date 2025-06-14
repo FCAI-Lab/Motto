@@ -1,5 +1,7 @@
 Require Import Perennial.program_proof.session.session_definitions.
 
+#[local] Opaque _Data.w.
+
 Reserved Infix ">>=" (left associativity, at level 90).
 Reserved Infix "=~=" (at level 70, no associativity).
 
@@ -1051,22 +1053,7 @@ Module Server_nat.
         server.(Server.PendingOperations)
         (server, W64 0, []);
       let '(server, _, seen) := TMP in do
-      'TMP <- fold_left
-        ( fun acc : nat * nat * list Operation.t => fun elem : Operation.t =>
-          let '(i, j, output) := acc in
-          match seen !! j with
-          | Some i' => do
-            if (i =? uint.nat i')%nat then do
-              ret ((i + 1)%nat, (j + 1)%nat, output)
-            else do
-              ret ((i + 1)%nat, j, output ++ [elem])
-          | None => do
-            ret ((i + 1)%nat, j, output ++ [elem])
-          end
-        )
-        server.(Server.PendingOperations)
-        (0%nat, 0%nat, []);
-      let '(_, _, output) := TMP in do
+      let '(_, _, output) := fold_left (fun acc : nat * nat * list Operation.t => fun elem : Operation.t => let '(i, j, output) := acc in match seen !! j with Some i' => if (i =? uint.nat i')%nat then ((i + 1)%nat, (j + 1)%nat, output) else ((i + 1)%nat, j, output ++ [elem]) | None => ((i + 1)%nat, j, output ++ [elem]) end) server.(Server.PendingOperations) (0%nat, 0%nat, []) in do
       ret
         {|
           Server.Id := server.(Server.Id);
