@@ -31,9 +31,7 @@ Inductive list_corres {A : Type} {A' : Type} `{Similarity A A'} : Similarity (li
 
 #[local] Hint Constructors list_corres : core.
 
-#[global]
-Instance Similarity_list {A : Type} {A' : Type} (A_SIM : Similarity A A') : Similarity (list A) (list A') :=
-  @list_corres A A' A_SIM.
+#[global] Existing Instance list_corres.
 
 Inductive option_corres {A : Type} {A' : Type} {SIM : Similarity A A'} : Similarity (option A) (option A') :=
   | None_corres
@@ -44,9 +42,7 @@ Inductive option_corres {A : Type} {A' : Type} {SIM : Similarity A A'} : Similar
 
 #[local] Hint Constructors option_corres : core.
 
-#[global]
-Instance Similarity_option {A : Type} {A' : Type} (SIM : Similarity A A') : Similarity (option A) (option A') :=
-  @option_corres A A' SIM.
+#[global] Existing Instance option_corres.
 
 #[global]
 Instance Similarity_bool : Similarity bool bool :=
@@ -655,7 +651,7 @@ Proof.
   intros r' H_r'. exact (f_corres x' y' z' r' H_r' x x_corres y y_corres z z_corres).
 Qed.
 
-Tactic Notation "xintros0" ident( a ) :=
+Tactic Notation "xintros" :=
   let r' := fresh "res'" in
   let H_r' := fresh "H_res'" in
   intros r' H_r';
@@ -664,7 +660,7 @@ Tactic Notation "xintros0" ident( a ) :=
   | [ |- forall r', tryget ?m' = Some r' -> exists r, r =~= r' /\ ?m = r ] => change (downward m m')
   end.
 
-Tactic Notation "xintros1" ident( a ) :=
+Tactic Notation "xintros" ident( a ) :=
   let x := fresh a in
   let x' := fresh a "'" in
   let x_corres := fresh a "_corres" in
@@ -676,7 +672,7 @@ Tactic Notation "xintros1" ident( a ) :=
   | [ |- forall r', tryget ?m' = Some r' -> exists r, r =~= r' /\ ?m = r ] => change (downward m m')
   end.
 
-Tactic Notation "xintros2" ident( a ) ident( b ) :=
+Tactic Notation "xintros" ident( a ) ident( b ) :=
   let x := fresh a in
   let x' := fresh a "'" in
   let x_corres := fresh a "_corres" in
@@ -691,7 +687,7 @@ Tactic Notation "xintros2" ident( a ) ident( b ) :=
   | [ |- forall r', tryget ?m' = Some r' -> exists r, r =~= r' /\ ?m = r ] => change (downward m m')
   end.
 
-Tactic Notation "xintros3" ident( a ) ident( b ) ident( c ) :=
+Tactic Notation "xintros" ident( a ) ident( b ) ident( c ) :=
   let x := fresh a in
   let x' := fresh a "'" in
   let x_corres := fresh a "_corres" in
@@ -724,13 +720,21 @@ Ltac xapp2 :=
 Ltac xapp3 :=
   eapply downward_app3; xapp_aux.
 
+Ltac xapp :=
+  first
+  [ eapply downward_app3; [eassumption | xapp_aux | xapp_aux | xapp_aux]
+  | eapply downward_app2; [eassumption | xapp_aux | xapp_aux]
+  | eapply downward_app1; [eassumption | xapp_aux]
+  | eapply downward_app0; eassumption
+  ].
+
 Lemma downward_match_option `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (m : identity B) (m' : M B') (k : A -> identity B) (k' : A' -> M B') (o : option A) (o' : option A')
   (m_corres : downward m m')
   (k_corres : param1func_corres k k')
   (o_corres : o =~= o')
   : downward (match o with Some x => k x | None => m end) (match o' with Some x' => k' x' | None => m' end).
 Proof.
-  destruct o_corres; eauto. xapp1. 
+  destruct o_corres; eauto. xapp.
 Qed.
 
 Lemma downward_fold_left `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B -> identity A) (f' : A' -> B' -> M A') (xs : list B) (xs' : list B') (z : A) (z' : A')
@@ -742,7 +746,7 @@ Proof.
   revert z z' z_corres. induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl; intros.
   - eapply downward_pure; trivial.
   - change (fold_left f xs (f z x)) with (bind (M := identity) (isMonad := identity_isMonad) (f z x) (fun y : A => pure (fold_left f xs y))).
-    eapply downward_bind; [xapp2 | clear z z' z_corres]. xintros1 z; eauto.
+    eapply downward_bind; [xapp | clear z z' z_corres]. xintros z; eauto.
 Qed.
 
 Ltac des :=
@@ -945,7 +949,7 @@ Module Server_nat.
   Lemma coq_deleteAtIndexOperation_corres
     : param2func_corres (M := M) ServerSide.coq_deleteAtIndexOperation coq_deleteAtIndexOperation.
   Proof.
-    xintros2 l index. unfold ServerSide.coq_deleteAtIndexOperation, coq_deleteAtIndexOperation.
+    xintros l index. unfold ServerSide.coq_deleteAtIndexOperation, coq_deleteAtIndexOperation.
     red; intros; des.
     - rewrite -> (tryget_put_if_true (deleteAt l' index')) in H1.
       assert (r' = deleteAt l' index') as -> by congruence. clear H1.
@@ -967,7 +971,7 @@ Module Server_nat.
   Lemma coq_deleteAtIndexMessage_corres
     : param2func_corres (M := M) ServerSide.coq_deleteAtIndexMessage coq_deleteAtIndexMessage.
   Proof.
-    xintros2 l index. unfold ServerSide.coq_deleteAtIndexMessage, coq_deleteAtIndexMessage.
+    xintros l index. unfold ServerSide.coq_deleteAtIndexMessage, coq_deleteAtIndexMessage.
     red; intros; des.
     - rewrite -> (tryget_put_if_true (deleteAt l' index')) in H1.
       assert (r' = deleteAt l' index') as -> by congruence. clear H1.
@@ -992,10 +996,10 @@ Module Server_nat.
   Lemma coq_getDataFromOperationLog_corres
     : param1func_corres (M := M) ServerSide.coq_getDataFromOperationLog coq_getDataFromOperationLog.
   Proof.
-    xintros1 ops. unfold ServerSide.coq_getDataFromOperationLog, coq_getDataFromOperationLog.
+    xintros ops. unfold ServerSide.coq_getDataFromOperationLog, coq_getDataFromOperationLog.
     eapply downward_match_option.
     - eapply downward_put_if_false.
-    - xintros1 op. eapply downward_put_if_true. inversion op_corres; subst. trivial.
+    - xintros op. eapply downward_put_if_true. inversion op_corres; subst. trivial.
     - eapply last_corres; trivial.
   Qed.
 
