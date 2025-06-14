@@ -502,9 +502,6 @@ Module ServerSide.
       end
     end.
 
-  Definition coq_equalOperations (o1: Operation.t) (o2: Operation.t) : bool :=
-    coq_equalSlices o1.(Operation.VersionVector) o2.(Operation.VersionVector) && (uint.Z o1.(Operation.Data) =? uint.Z (o2.(Operation.Data))).
-
   Variant binarySearch_spec (needle: Operation.t) (l: list Operation.t) (n: nat) (RESULT: nat) : Prop :=
     | binarySearch_spec_intro prefix suffix
       (LENGTH: RESULT = length prefix)

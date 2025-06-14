@@ -12,6 +12,10 @@ Class Similarity (A : Type) (A' : Type) : Type :=
 Infix "=~=" := is_similar_to.
 
 #[global]
+Instance Similarity_forall {D : Type} {D' : Type} {C : D -> Type} {C' : D' -> Type} (DOM_SIM : Similarity D D') (COD_SIM : forall x : D, forall x' : D', x =~= x' -> Similarity (C x) (C' x')) : Similarity (forall x : D, C x) (forall x' : D', C' x') :=
+  fun f => fun f' => forall x : D, forall x' : D', forall x_corres : x =~= x', @is_similar_to (C x) (C' x') (COD_SIM x x' x_corres) (f x) (f' x').
+
+#[global]
 Instance Similarity_prod {A : Type} {A' : Type} {B : Type} {B' : Type} (FST_SIM : Similarity A A') (SND_SIM : Similarity B B') : Similarity (A * B) (A' * B') :=
   fun p => fun p' => fst p =~= fst p' /\ snd p =~= snd p'.
 
@@ -553,102 +557,76 @@ Tactic Notation "xintros3" ident( a ) ident( b ) ident( c ) :=
 
 Module Server_nat.
 
-  Fixpoint coq_compareVersionVector `{isSuperMonad M} (v1 : list nat) (v2 : list nat) : M bool :=
+  Section refine_coq_compareVersionVector.
+
+  Fixpoint coq_compareVersionVector (v1 : list nat) (v2 : list nat) : bool :=
     match v1 with
-    | [] => do
-      ret true
+    | [] => true
     | h1 :: t1 =>
       match v2 with
-      | [] => do
-        ret true
-      | h2 :: t2 => do
-        'b <- coq_compareVersionVector t1 t2;
-        ret ((h2 <=? h1)%nat && b)
+      | [] => true
+      | h2 :: t2 => (h2 <=? h1)%nat && coq_compareVersionVector t1 t2
       end
     end.
 
-  Lemma coq_compareVersionVector_corres `{isSuperMonad M}
-    : param2func_corres (M := M) ServerSide.coq_compareVersionVector coq_compareVersionVector.
+  Lemma coq_compareVersionVector_corres
+    : ServerSide.coq_compareVersionVector =~= coq_compareVersionVector.
   Proof.
-    intros xs' ys' z' H_OBS xs xs_corres ys ys_corres. revert ys ys' ys_corres z' H_OBS.
-    induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl; intros ys ys' ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl; intros.
-    - exists true; split; s!. apply tryget_pure in H_OBS. ss!.
-    - exists true; split; s!. apply tryget_pure in H_OBS. ss!.
-    - exists true; split; s!. apply tryget_pure in H_OBS. ss!.
-    - specialize (IH ys ys' ys_corres z'). apply tryget_bind in H_OBS. Tac.des.
-      + destruct H_OBS as (b & H_OBS & H_b). apply tryget_pure in H_b. subst z'.
-        exists false; split; trivial. destruct (_ <=? _)%nat as [ | ] eqn: H_OBS'; [rewrite Nat.leb_le in H_OBS' | rewrite Nat.leb_nle in H_OBS'].
-        * do 2 red in x_corres, y_corres. word.
-        * rewrite andb_false_l. reflexivity.
-      + destruct H_OBS as (b & H_OBS & H_b). apply tryget_pure in H_b. subst z'.
-        destruct (_ <=? _)%nat as [ | ] eqn: H_OBS'; [rewrite Nat.leb_le in H_OBS' | rewrite Nat.leb_nle in H_OBS'].
-        * eapply IH. rewrite andb_true_l. exact H_OBS.
-        * do 2 red in x_corres, y_corres. word.
+    intros xs xs' xs_corres; induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; try (do 2 red; reflexivity).
+    des; try word. simpl. eapply IH; trivial.
   Qed.
 
-  Fixpoint coq_lexicographicCompare `{isSuperMonad M} (v1 : list nat) (v2 : list nat) : M bool :=
+  End refine_coq_compareVersionVector.
+
+  Section refine_coq_lexicographicCompare.
+
+  Fixpoint coq_lexicographicCompare (v1 : list nat) (v2 : list nat) : bool :=
     match v1 with
-    | [] => do
-      ret false
+    | [] => false
     | h1 :: t1 =>
       match v2 with
-      | [] => do
-        ret false
+      | [] => false
       | h2 :: t2 =>
-        if (h1 =? h2)%nat then do
+        if (h1 =? h2)%nat then
           coq_lexicographicCompare t1 t2
-        else do
-          ret (h2 <? h1)%nat
+        else
+          (h2 <? h1)%nat
       end
     end.
 
-  Lemma coq_lexicographicCompare_corres `{isSuperMonad M}
-    : param2func_corres (M := M) ServerSide.coq_lexicographicCompare coq_lexicographicCompare.
+  Lemma coq_lexicographicCompare_corres
+    : ServerSide.coq_lexicographicCompare =~= coq_lexicographicCompare.
   Proof.
-    intros xs' ys' z' H_OBS xs xs_corres ys ys_corres. revert ys ys' ys_corres z' H_OBS.
-    induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl; intros ys ys' ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl; intros; des; try word.
-    - exists false; split; s!. apply tryget_pure in H_OBS. ss!.
-    - exists false; split; s!. apply tryget_pure in H_OBS. ss!.
-    - exists false; split; s!. apply tryget_pure in H_OBS. ss!.
-    - specialize (IH ys ys' ys_corres z'). revert H_OBS; des; intros; try word. eapply IH; trivial.
-    - exists true. split; s!. apply tryget_pure in H_OBS. ss!.
-    - exists false. split; s!. apply tryget_pure in H_OBS. ss!.
+    intros xs xs' xs_corres; induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; try (do 2 red; reflexivity).
+    des; try word. simpl. eapply IH; trivial.
   Qed.
 
-  Fixpoint coq_maxTS `{isSuperMonad M} (xs : list nat) (ys : list nat) : M (list nat) :=
+  End refine_coq_lexicographicCompare.
+
+  Section refine_coq_maxTS.
+
+  Fixpoint coq_maxTS (xs : list nat) (ys : list nat) : list nat :=
     match xs with
-    | [] => do
-      ret []
+    | [] => []
     | x' :: xs' =>
       match ys with
-      | [] => do
-        ret []
-      | y' :: ys' => do
-        'zs <- coq_maxTS xs' ys';
-        ret (Nat.max x' y' :: zs)
+      | [] => []
+      | y' :: ys' => Nat.max x' y' :: coq_maxTS xs' ys'
       end
     end.
 
-  Lemma coq_maxTS_corres `{isSuperMonad M}
-    : param2func_corres (M := M) ServerSide.coq_maxTS coq_maxTS.
+  Lemma coq_maxTS_corres
+    : ServerSide.coq_maxTS =~= coq_maxTS.
   Proof.
-    intros xs' ys' z' H_OBS xs xs_corres ys ys_corres. revert ys ys' ys_corres z' H_OBS.
-    induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl; intros ys ys' ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl; intros.
-    - apply tryget_pure in H_OBS. subst z'. exists []. split; ss!.
-    - apply tryget_pure in H_OBS. subst z'. exists []. split; ss!.
-    - apply tryget_pure in H_OBS. subst z'. exists []. split; ss!.
-    - apply tryget_bind in H_OBS. destruct H_OBS as (zs' & H_OBS & H_z').
-      apply tryget_pure in H_z'. unfold ServerSide.coq_maxTwoInts. Tac.des.
-      + specialize (IH ys ys' ys_corres zs' H_OBS). destruct IH as (zs & H_zs & IH).
-        exists (x :: zs). subst z' zs. split; ss!. econstructor; ss!. do 2 red in x_corres, y_corres |- *; word.
-      + specialize (IH ys ys' ys_corres zs' H_OBS). destruct IH as (zs & H_zs & IH).
-        exists (y :: zs). subst z' zs. split; ss!. econstructor; ss!. do 2 red in x_corres, y_corres |- *; word.
+    intros xs xs' xs_corres; induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; eauto.
+    unfold ServerSide.coq_maxTwoInts. des; econstructor 2; eauto; do 2 red; word.
   Qed.
 
-  #[local] Arguments bind : simpl never.
-  #[local] Arguments pure : simpl never.
+  End refine_coq_maxTS.
 
-  Lemma coq_oneOffVersionVector_u64 :
+  Section refine_coq_oneOffVersionVector.
+
+  Let coq_oneOffVersionVector_u64 :
     ServerSide.coq_oneOffVersionVector =
     fun v1 : list u64 => fun v2 : list u64 => do
     let loop_step (acc : bool * bool) (elem : u64 * u64) : identity (bool * bool) :=
@@ -668,7 +646,9 @@ Module Server_nat.
     reflexivity.
   Defined.
 
-  Definition coq_oneOffVersionVector `{isSuperMonad M} (v1 : list nat) (v2 : list nat) : M bool :=
+  Context `{isSuperMonad M}.
+
+  Definition coq_oneOffVersionVector (v1 : list nat) (v2 : list nat) : M bool :=
     let loop_step (acc : bool * bool) (elem : nat * nat) : M (bool * bool)%type :=
       let '(e1, e2) := elem in
       let '(output, canApply) := acc in
@@ -681,7 +661,7 @@ Module Server_nat.
     '(output, canApply) <- fold_left' loop_step (zip v1 v2) (true, true);
     ret (output && negb canApply).
 
-  Lemma coq_oneOffVersionVector_corres `{isSuperMonad M}
+  Lemma coq_oneOffVersionVector_corres
     : param2func_corres (M := M) ServerSide.coq_oneOffVersionVector coq_oneOffVersionVector.
   Proof.
     rewrite coq_oneOffVersionVector_u64. unfold coq_oneOffVersionVector.
@@ -723,8 +703,32 @@ Module Server_nat.
     }
     intros [output canApply] [output' canApply']; simpl in *.
     intros [output_corres canApply_corres]; simpl in *.
-    eapply downward_pure. do 2 red in output_corres, canApply_corres |- *. congruence.
+    eapply downward_pure. do 2 red in output_corres, canApply_corres |- *.
+    subst output' canApply'; destruct output, canApply; reflexivity.
   Qed.
+
+  End refine_coq_oneOffVersionVector.
+
+  Section refine_coq_equalSlices.
+
+  Fixpoint coq_equalSlices (s1 : list nat) (s2: list nat) : bool :=
+    match s1 with
+    | [] => true
+    | h1 :: t1 =>
+      match s2 with
+      | [] => true
+      | h2 :: t2 => (h1 =? h2)%nat && coq_equalSlices t1 t2
+      end
+    end.
+
+  Lemma coq_equalSlices_corres
+    : ServerSide.coq_equalSlices =~= coq_equalSlices.
+  Proof.
+    intros xs xs' xs_corres; induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; try (do 2 red; reflexivity).
+    des; try word; simpl; trivial; eapply IH; trivial.
+  Qed.
+
+  End refine_coq_equalSlices.
 
   (* Use SessionPrelude.deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
 
