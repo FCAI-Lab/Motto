@@ -187,7 +187,7 @@ Fixpoint fold_left' {M : Type -> Type} `{isMonad M} {A : Type} {B : Type} (f : A
     fold_left' f xs' y
   end.
 
-Class isSuperMonad (M : Type -> Type) `{isMonad M} : Type :=
+Class MonadError (M : Type -> Type) `{isMonad M} : Type :=
   { put_if {A : Type} (guard : bool) : A -> M A
   ; tryget {A : Type} : M A -> option A
   ; tryget_put_if_true {A : Type} (x : A) (r : option A)
@@ -201,7 +201,7 @@ Class isSuperMonad (M : Type -> Type) `{isMonad M} : Type :=
   }.
 
 #[global, program]
-Instance Err_isSuperMonad : isSuperMonad Err :=
+Instance Err_MonadError : MonadError Err :=
   { put_if {A} (guard : bool) (x : A) := (guard, x)
   ; tryget {A} (m : Err A) := if m.1 then Some m.2 else None
   }.
@@ -221,7 +221,7 @@ Next Obligation.
 Qed.
 
 #[global, program]
-Instance option_isSuperMonad : isSuperMonad option :=
+Instance option_MonadError : MonadError option :=
   { put_if {A} (guard : bool) (x : A) := if guard then Some x else None
   ; tryget {A} (m : option A) := m
   }.
@@ -243,22 +243,22 @@ Qed.
 
 (** Section BASIC_CORRES. *)
 
-Definition param0func_corres `{isSuperMonad M} {A : Type} {A' : Type} `{Similarity A A'} (f : A) (f' : M A') : Prop :=
+Definition param0func_corres `{MonadError M} {A : Type} {A' : Type} `{Similarity A A'} (f : A) (f' : M A') : Prop :=
   forall a' : A', tryget f' = Some a' ->
   exists a : A, a =~= a' /\ f = a.
 
-Definition param1func_corres `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B) (f' : A' -> M B') : Prop :=
+Definition param1func_corres `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B) (f' : A' -> M B') : Prop :=
   forall a' : A', forall b' : B', tryget (f' a') = Some b' ->
   forall a : A, a =~= a' ->
   exists b : B, b =~= b' /\ f a = b.
 
-Definition param2func_corres `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} (f : A -> B -> C) (f' : A' -> B' -> M C') : Prop :=
+Definition param2func_corres `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} (f : A -> B -> C) (f' : A' -> B' -> M C') : Prop :=
   forall a' : A', forall b' : B', forall c' : C', tryget (f' a' b') = Some c' ->
   forall a : A, a =~= a' ->
   forall b : B, b =~= b' ->
   exists c : C, c =~= c' /\ f a b = c.
 
-Definition param3func_corres `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} {D : Type} {D' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} `{Similarity D D'} (f : A -> B -> C -> D) (f' : A' -> B' -> C' -> M D') : Prop :=
+Definition param3func_corres `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} {D : Type} {D' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} `{Similarity D D'} (f : A -> B -> C -> D) (f' : A' -> B' -> C' -> M D') : Prop :=
   forall a' : A', forall b' : B', forall c' : C', forall d' : D', tryget (f' a' b' c') = Some d' ->
   forall a : A, a =~= a' ->
   forall b : B, b =~= b' ->
@@ -583,14 +583,14 @@ Instance Similarity_Client : Similarity Client.t Client'.t :=
 
 (** End BASIC_CORRES. *)
 
-Definition downward `{isSuperMonad M} {R : Type} {R' : Type} `{Similarity R R'} (m : identity R) (m' : M R') : Prop :=
+Definition downward `{MonadError M} {R : Type} {R' : Type} `{Similarity R R'} (m : identity R) (m' : M R') : Prop :=
   forall r' : R',
   tryget m' = Some r' ->
   exists r : R, r =~= r' /\ m = r.
 
-Notation "'DOWNWARD' src '====================' tgt" := (downward tgt src) (at level 100, no associativity, format "'//' 'DOWNWARD' '//' src  '//' '====================' '//' tgt").
+Notation "'REFINEMENT' src '====================' tgt" := (downward tgt src) (at level 100, no associativity, format "'//' 'REFINEMENT' '//' src  '//' '====================' '//' tgt").
 
-Lemma downward_bind `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (m : identity A) (m' : M A') (k : A -> identity B) (k' : A' -> M B')
+Lemma downward_bind `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (m : identity A) (m' : M A') (k : A -> identity B) (k' : A' -> M B')
   (m_corres : downward m m')
   (k_corres : param1func_corres k k')
   : downward (M := M) (bind m k) (bind m' k').
@@ -601,34 +601,34 @@ Proof.
   pose proof (m_corres x' H_r') as (x & H_x & H_m); congruence. 
 Qed.
 
-Lemma downward_pure `{isSuperMonad M} {R : Type} {R' : Type} `{Similarity R R'} (x : R) (x' : R')
+Lemma downward_pure `{MonadError M} {R : Type} {R' : Type} `{Similarity R R'} (x : R) (x' : R')
   (x_corres : x =~= x')
   : downward (M := M) (pure x) (pure x').
 Proof.
   red. intros r' H_r'. apply tryget_pure in H_r'. exists x. split; ss!.
 Qed.
 
-Lemma downward_put_if_false `{isSuperMonad M} {R : Type} {R' : Type} `{Similarity R R'} (x : R) (x' : R')
+Lemma downward_put_if_false `{MonadError M} {R : Type} {R' : Type} `{Similarity R R'} (x : R) (x' : R')
   : downward (M := M) x (put_if false x').
 Proof.
   intros r' H_r'. rewrite tryget_put_if_false in H_r'. congruence.
 Qed.
 
-Lemma downward_put_if_true `{isSuperMonad M} {R : Type} {R' : Type} `{Similarity R R'} (x : R) (x' : R')
+Lemma downward_put_if_true `{MonadError M} {R : Type} {R' : Type} `{Similarity R R'} (x : R) (x' : R')
   (x_corres : x =~= x')
   : downward (M := M) x (put_if true x').
 Proof.
   intros r' H_r'. rewrite tryget_put_if_true in H_r'. exists x; split; ss!.
 Qed.
 
-Lemma downward_app0 `{isSuperMonad M} {A : Type} {A' : Type} `{Similarity A A'} (f : identity A) (f' : M A')
+Lemma downward_app0 `{MonadError M} {A : Type} {A' : Type} `{Similarity A A'} (f : identity A) (f' : M A')
   (f_corres : param0func_corres f f')
   : downward (M := M) f f'.
 Proof.
   trivial.
 Qed.
 
-Lemma downward_app1 `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> identity B) (f' : A' -> M B') (x : A) (x' : A')
+Lemma downward_app1 `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> identity B) (f' : A' -> M B') (x : A) (x' : A')
   (f_corres : param1func_corres f f')
   (x_corres : x =~= x')
   : downward (M := M) (f x) (f' x').
@@ -636,7 +636,7 @@ Proof.
   intros r' H_r'. exact (f_corres x' r' H_r' x x_corres).
 Qed.
 
-Lemma downward_app2 `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} (f : A -> B -> identity C) (f' : A' -> B' -> M C') (x : A) (x' : A') (y : B) (y' : B')
+Lemma downward_app2 `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} (f : A -> B -> identity C) (f' : A' -> B' -> M C') (x : A) (x' : A') (y : B) (y' : B')
   (f_corres : param2func_corres f f')
   (x_corres : x =~= x')
   (y_corres : y =~= y')
@@ -645,7 +645,7 @@ Proof.
   intros r' H_r'. exact (f_corres x' y' r' H_r' x x_corres y y_corres).
 Qed.
 
-Lemma downward_app3 `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} {D : Type} {D' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} `{Similarity D D'} (f : A -> B -> C -> identity D) (f' : A' -> B' -> C' -> M D') (x : A) (x' : A') (y : B) (y' : B') (z : C) (z' : C')
+Lemma downward_app3 `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} {D : Type} {D' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} `{Similarity D D'} (f : A -> B -> C -> identity D) (f' : A' -> B' -> C' -> M D') (x : A) (x' : A') (y : B) (y' : B') (z : C) (z' : C')
   (f_corres : param3func_corres f f')
   (x_corres : x =~= x')
   (y_corres : y =~= y')
@@ -724,7 +724,7 @@ Ltac xapp2 :=
 Ltac xapp3 :=
   eapply downward_app3; xapp_aux.
 
-Lemma downward_match_option `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (m : identity B) (m' : M B') (k : A -> identity B) (k' : A' -> M B') (o : option A) (o' : option A')
+Lemma downward_match_option `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (m : identity B) (m' : M B') (k : A -> identity B) (k' : A' -> M B') (o : option A) (o' : option A')
   (m_corres : downward m m')
   (k_corres : param1func_corres k k')
   (o_corres : o =~= o')
@@ -733,7 +733,7 @@ Proof.
   destruct o_corres; eauto. xapp1. 
 Qed.
 
-Lemma downward_fold_left `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B -> identity A) (f' : A' -> B' -> M A') (xs : list B) (xs' : list B') (z : A) (z' : A')
+Lemma downward_fold_left `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B -> identity A) (f' : A' -> B' -> M A') (xs : list B) (xs' : list B') (z : A) (z' : A')
   (f_corres : param2func_corres f f')
   (xs_corres : xs =~= xs')
   (z_corres : z =~= z')
@@ -937,7 +937,7 @@ Module Server_nat.
 
   Section refine_coq_deleteAtIndexOperation.
 
-  Context `{isSuperMonad M}.
+  Context `{MonadError M}.
 
   Definition coq_deleteAtIndexOperation (l : list Operation'.t) (index : nat) : M (list Operation'.t) :=
     put_if (index + 1 <? length l)%nat (deleteAt l index).
@@ -959,7 +959,7 @@ Module Server_nat.
 
   Section refine_coq_deleteAtIndexMessage.
 
-  Context `{isSuperMonad M}.
+  Context `{MonadError M}.
 
   Definition coq_deleteAtIndexMessage (l : list Message'.t) (index : nat) : M (list Message'.t) :=
     put_if (index + 1 <? length l)%nat (deleteAt l index).
@@ -981,7 +981,7 @@ Module Server_nat.
 
   Section refine_coq_getDataFromOperationLog.
 
-  Context `{isSuperMonad M}.
+  Context `{MonadError M}.
 
   Definition coq_getDataFromOperationLog (ops : list Operation'.t) : M _Data.w :=
     match last ops with
@@ -1070,7 +1070,7 @@ Module Server_nat.
     reflexivity.
   Defined.
 
-  Context `{isSuperMonad M}.
+  Context `{MonadError M}.
 
   (* TODO *)
 
