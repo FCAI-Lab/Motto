@@ -24,7 +24,7 @@ compiled with OCaml 5.2.1
 - [x] `versionVector.v` (751 lines)
 - [x] `gossip.v` (841 lines)
 - [x] `processRequest.v` (1069 lines)
-- [ ] `u64ToNat.v` (8 refinements remain)
+- [ ] `u64ToNat.v` (5 refinements remain)
 
 ## Notable Changes
 

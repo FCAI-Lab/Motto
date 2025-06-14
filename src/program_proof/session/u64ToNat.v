@@ -396,6 +396,49 @@ Proof.
   econstructor; [split; trivial | ss!].
 Qed.
 
+Lemma match_nat_2_corres {A : Type} {A' : Type} `{Similarity A A'} (n : nat) (n' : nat) (t0 : A) (t0' : A') (t1 : A) (t1' : A') (t2 : A) (t2' : A')
+  (n_corres : n =~= n')
+  (t0_corres : t0 =~= t0')
+  (t1_corres : t1 =~= t1')
+  (t2_corres : t2 =~= t2')
+  : (match n with 0%nat => t0 | 1%nat => t1 | _ => t2 end) =~= (match n' with 0%nat => t0' | 1%nat => t1' | _ => t2' end).
+Proof.
+  do 2 red in n_corres; subst n'. destruct n as [ | [ | n]]; simpl; eauto.
+Qed.
+
+Lemma match_nat_3_corres {A : Type} {A' : Type} `{Similarity A A'} (n : nat) (n' : nat) (t0 : A) (t0' : A') (t1 : A) (t1' : A') (t2 : A) (t2' : A') (t3 : A) (t3' : A')
+  (n_corres : n =~= n')
+  (t0_corres : t0 =~= t0')
+  (t1_corres : t1 =~= t1')
+  (t2_corres : t2 =~= t2')
+  (t3_corres : t3 =~= t3')
+  : (match n with 0%nat => t0 | 1%nat => t1 | 2%nat => t2 | _ => t3 end) =~= (match n' with 0%nat => t0' | 1%nat => t1' | 2%nat => t2' | _ => t3' end).
+Proof.
+  do 2 red in n_corres; subst n'. destruct n as [ | [ | [ | [ | n]]]]; simpl; eauto.
+Qed.
+
+Lemma match_nat_6_corres {A : Type} {A' : Type} `{Similarity A A'} (n : nat) (n' : nat) (t0 : A) (t0' : A') (t1 : A) (t1' : A') (t2 : A) (t2' : A') (t3 : A) (t3' : A') (t4 : A) (t4' : A') (t5 : A) (t5' : A') (t6 : A) (t6' : A')
+  (n_corres : n =~= n')
+  (t0_corres : t0 =~= t0')
+  (t1_corres : t1 =~= t1')
+  (t2_corres : t2 =~= t2')
+  (t3_corres : t3 =~= t3')
+  (t4_corres : t4 =~= t4')
+  (t5_corres : t5 =~= t5')
+  (t6_corres : t6 =~= t6')
+  : (match n with 0%nat => t0 | 1%nat => t1 | 2%nat => t2 | 3%nat => t3 | 4%nat => t4 | 5%nat => t5 | _ => t6 end) =~= (match n' with 0%nat => t0' | 1%nat => t1' | 2%nat => t2' | 3%nat => t3' | 4%nat => t4' | 5%nat => t5' | _ => t6' end).
+Proof.
+  do 2 red in n_corres; subst n'. destruct n as [ | [ | [ | [ | [ | [ | n]]]]]]; simpl; eauto.
+Qed.
+
+Lemma replicate_corres {A : Type} {A' : Type} {A_SIM : Similarity A A'} (n : nat) (n' : nat) (x : A) (x' : A')
+  (n_corres : n = n')
+  (x_corres : x =~= x')
+  : replicate n x =~= replicate n' x'.
+Proof.
+  subst n'; induction n as [ | n IH]; simpl; eauto.
+Qed.
+
 (** End CORRES_LEMMAS. *)
 
 Module Operation'.
@@ -547,38 +590,38 @@ Notation "'DOWNWARD' tgt '====================' src" := (downward tgt src) (at l
 
 Lemma downward_bind `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (m : identity A) (m' : M A') (k : A -> identity B) (k' : A' -> M B')
   (m_corres : downward m m')
-  (k_corres : forall x : A, forall x' : A', x =~= x' -> downward (k x) (k' x'))
-  : downward (bind m k) (bind m' k').
+  (k_corres : param1func_corres k k')
+  : downward (M := M) (bind m k) (bind m' k').
 Proof.
   unfold downward in *. intros r' H_r'.
   apply tryget_bind in H_r'. destruct H_r' as (x' & H_r' & H_x').
-  eapply k_corres with (x' := x'); trivial.
+  eapply k_corres with (a' := x'); trivial.
   pose proof (m_corres x' H_r') as (x & H_x & H_m); congruence. 
 Qed.
 
 Lemma downward_pure `{isSuperMonad M} {R : Type} {R' : Type} `{Similarity R R'} (x : R) (x' : R')
   (x_corres : x =~= x')
-  : downward (pure (M := identity) x) (pure (M := M) x').
+  : downward (M := M) (pure x) (pure x').
 Proof.
   red. intros r' H_r'. apply tryget_pure in H_r'. exists x. split; ss!.
 Qed.
 
 Lemma downward_put_if_false `{isSuperMonad M} {R : Type} {R' : Type} `{Similarity R R'} (x : R) (x' : R')
-  : downward x (put_if false x').
+  : downward (M := M) x (put_if false x').
 Proof.
   intros r' H_r'. rewrite tryget_put_if_false in H_r'. congruence.
 Qed.
 
 Lemma downward_put_if_true `{isSuperMonad M} {R : Type} {R' : Type} `{Similarity R R'} (x : R) (x' : R')
   (x_corres : x =~= x')
-  : downward x (put_if true x').
+  : downward (M := M) x (put_if true x').
 Proof.
   intros r' H_r'. rewrite tryget_put_if_true in H_r'. exists x; split; ss!.
 Qed.
 
 Lemma downward_app0 `{isSuperMonad M} {A : Type} {A' : Type} `{Similarity A A'} (f : identity A) (f' : M A')
   (f_corres : param0func_corres f f')
-  : downward f f'.
+  : downward (M := M) f f'.
 Proof.
   trivial.
 Qed.
@@ -586,7 +629,7 @@ Qed.
 Lemma downward_app1 `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> identity B) (f' : A' -> M B') (x : A) (x' : A')
   (f_corres : param1func_corres f f')
   (x_corres : x =~= x')
-  : downward (f x) (f' x').
+  : downward (M := M) (f x) (f' x').
 Proof.
   intros r' H_r'. exact (f_corres x' r' H_r' x x_corres).
 Qed.
@@ -595,7 +638,7 @@ Lemma downward_app2 `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Ty
   (f_corres : param2func_corres f f')
   (x_corres : x =~= x')
   (y_corres : y =~= y')
-  : downward (f x y) (f' x' y').
+  : downward (M := M) (f x y) (f' x' y').
 Proof.
   intros r' H_r'. exact (f_corres x' y' r' H_r' x x_corres y y_corres).
 Qed.
@@ -605,7 +648,7 @@ Lemma downward_app3 `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Ty
   (x_corres : x =~= x')
   (y_corres : y =~= y')
   (z_corres : z =~= z')
-  : downward (f x y z) (f' x' y' z').
+  : downward (M := M) (f x y z) (f' x' y' z').
 Proof.
   intros r' H_r'. exact (f_corres x' y' z' r' H_r' x x_corres y y_corres z z_corres).
 Qed.
@@ -664,9 +707,20 @@ Tactic Notation "xintros3" ident( a ) ident( b ) ident( c ) :=
   | [ |- forall r', tryget ?m' = Some r' -> exists r, r =~= r' /\ ?m = r ] => change (downward m m')
   end.
 
-Tactic Notation "xapp" :=
-  first [eapply downward_app3 | eapply downward_app2 | eapply downward_app1 | eapply downward_app0]; eauto 2;
+Ltac xapp_aux :=
   try ((repeat lazymatch goal with [ H : _ =~= _ |- _ ] => inversion H; subst end); (try do 2 red); trivial).
+
+Ltac xapp0 :=
+  eapply downward_app0; xapp_aux.
+
+Ltac xapp1 :=
+  eapply downward_app1; xapp_aux.
+
+Ltac xapp2 :=
+  eapply downward_app2; xapp_aux.
+
+Ltac xapp3 :=
+  eapply downward_app3; xapp_aux.
 
 Lemma downward_match_option `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (m : identity B) (m' : M B') (k : A -> identity B) (k' : A' -> M B') (o : option A) (o' : option A')
   (m_corres : downward m m')
@@ -674,7 +728,7 @@ Lemma downward_match_option `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} 
   (o_corres : o =~= o')
   : downward (match o with Some x => k x | None => m end) (match o' with Some x' => k' x' | None => m' end).
 Proof.
-  destruct o_corres; eauto. xapp.
+  destruct o_corres; eauto. xapp1. 
 Qed.
 
 Lemma downward_fold_left `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B -> identity A) (f' : A' -> B' -> M A') (xs : list B) (xs' : list B') (z : A) (z' : A')
@@ -686,8 +740,7 @@ Proof.
   revert z z' z_corres. induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl; intros.
   - eapply downward_pure; trivial.
   - change (fold_left f xs (f z x)) with (bind (M := identity) (isMonad := identity_isMonad) (f z x) (fun y : A => pure (fold_left f xs y))).
-    eapply downward_bind; eauto. intros r' H_r'. pose proof (f_corres z' x' r' H_r' z z_corres x x_corres) as (r & H_r & H_c). subst r.
-    exists (f z x). split; ss!.
+    eapply downward_bind; [xapp2 | clear z z' z_corres]. xintros1 z; eauto.
 Qed.
 
 Ltac des :=
@@ -1016,7 +1069,24 @@ Module Client_nat.
     | _ => Message'.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
     end.
 
-  (* TODO *)
+  Lemma coq_read_corres
+    : ClientSide.coq_read =~= coq_read.
+  Proof.
+    intros c c' c_corres serverId serverId' serverId_corres. unfold ClientSide.coq_read, coq_read.
+    inversion c_corres; subst. eapply match_nat_6_corres.
+    - do 2 red in SessionSemantic_corres |- *. word.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor.
+      eapply replicate_corres; trivial. do 2 red; word.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor.
+      eapply replicate_corres; trivial. do 2 red; word.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor.
+      eapply replicate_corres; trivial. do 2 red; word.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor.
+      eapply coq_maxTS_corres; trivial.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor.
+  Qed.
 
   End refine_coq_read.
 
@@ -1033,7 +1103,24 @@ Module Client_nat.
     | _ => Message'.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0
     end.
 
-  (* TODO *)
+  Lemma coq_write_corres
+    : ClientSide.coq_write =~= coq_write.
+  Proof.
+    intros c c' c_corres serverId serverId' serverId_corres value value' value_corres. unfold ClientSide.coq_write, coq_write.
+    inversion c_corres; subst. eapply match_nat_6_corres.
+    - do 2 red in SessionSemantic_corres |- *. word.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor; rewrite -> CONSTANT_unfold in *; try word.
+      eapply replicate_corres; trivial. do 2 red; rewrite -> CONSTANT_unfold; word.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor; rewrite -> CONSTANT_unfold in *; try word.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor; rewrite -> CONSTANT_unfold in *; try word.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor; rewrite -> CONSTANT_unfold in *; try word.
+      eapply replicate_corres; trivial. do 2 red; rewrite -> CONSTANT_unfold; word.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor; rewrite -> CONSTANT_unfold in *; try word.
+      eapply replicate_corres; trivial. do 2 red; rewrite -> CONSTANT_unfold; word.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor; rewrite -> CONSTANT_unfold in *; try word.
+      eapply coq_maxTS_corres; trivial.
+    - des. split; simpl; (try do 2 red; word || (repeat split); reflexivity || eauto 2); try econstructor; rewrite -> CONSTANT_unfold in *; try word.
+  Qed.
 
   End refine_coq_write.
 
@@ -1052,7 +1139,27 @@ Module Client_nat.
     | _ => (c, Message'.mk 0 0 0 0 (IntoVal_def _Data.w) [] 0 0 [] 0 0 0 0 0 (IntoVal_def _Data.w) [] 0 0)
     end.
 
-  (* TODO *)
+  Lemma coq_processRequest_corres
+    : ClientSide.coq_processRequest =~= coq_processRequest.
+  Proof.
+    intros c c' c_corres requestType requestType' requestType_corres serverId serverId' serverId_corres value value' value_corres ackMessage ackMessage' ackMessage_corres. unfold ClientSide.coq_processRequest, coq_processRequest.
+    inversion c_corres; subst. eapply match_nat_3_corres.
+    - do 2 red in requestType_corres |- *; try word.
+    - split; simpl; trivial. eapply coq_read_corres; trivial.
+    - split; simpl; trivial. eapply coq_write_corres; trivial.
+    - inversion ackMessage_corres; subst. eapply match_nat_2_corres; trivial.
+      + do 2 red in S2C_Client_OperationType_corres |- *; try word.
+      + split; simpl; trivial.
+        * econstructor; simpl; trivial.
+        * econstructor; simpl; trivial; do 2 red; try rewrite -> CONSTANT_unfold; try word.
+      + split; simpl; trivial.
+        * econstructor; simpl; trivial.
+        * econstructor; simpl; trivial; do 2 red; try rewrite -> CONSTANT_unfold; try word.
+      + split; simpl; trivial.
+        econstructor; simpl; trivial; do 2 red; try rewrite -> CONSTANT_unfold; try word.
+    - inversion ackMessage_corres; subst. split; simpl; trivial.
+      econstructor; simpl; trivial; do 2 red; try rewrite -> CONSTANT_unfold; try word.
+  Qed.
 
   End refine_coq_processRequest.
 
