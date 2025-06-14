@@ -357,6 +357,45 @@ Proof.
   destruct x_corres; eauto.
 Qed.
 
+Lemma let2_corres {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} {A_SIM : Similarity A A'} {B_SIM : Similarity B B'} {C_SIM : Similarity C C'} (f : A -> B -> C) (f' : A' -> B' -> C') (t : A * B) (t' : A' * B')
+  (t_corres : t =~= t')
+  (f_corres : f =~= f')
+  : (let '(x, y) := t in f x y) =~= (let '(x', y') := t' in f' x' y').
+Proof.
+  destruct t as [x y], t' as [x' y']; simpl in *.
+  inversion t_corres; subst; simpl in *.
+  eapply f_corres; trivial.
+Qed.
+
+Lemma let3_corres {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} {D : Type} {D' : Type} {A_SIM : Similarity A A'} {B_SIM : Similarity B B'} {C_SIM : Similarity C C'} {D_SIM : Similarity D D'} (f : A -> B -> C -> D) (f' : A' -> B' -> C' -> D') (t : A * B * C) (t' : A' * B' * C')
+  (t_corres : t =~= t')
+  (f_corres : f =~= f')
+  : (let '(x, y, z) := t in f x y z) =~= (let '(x', y', z') := t' in f' x' y' z').
+Proof.
+  destruct t as [[x y] z], t' as [[x' y'] z']; simpl in *.
+  inversion t_corres; subst; simpl in *. inversion H; subst; simpl in *.
+  eapply f_corres; trivial.
+Qed.
+
+Lemma fold_left_corres {A : Type} {A' : Type} {B : Type} {B' : Type} {A_SIM : Similarity A A'} {B_SIM : Similarity B B'} (f : A -> B -> A) (xs : list B) (z : A) (f' : A' -> B' -> A') (xs' : list B') (z' : A')
+  (f_corres : f =~= f')
+  (xs_corres : xs =~= xs')
+  (z_corres : z =~= z')
+  : @fold_left A B f xs z =~= @fold_left A' B' f' xs' z'.
+Proof.
+  do 4 red in f_corres; revert z z' z_corres; induction xs_corres; simpl; eauto.
+Qed.
+
+Lemma zip_corres {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (xs : list A) (xs' : list A') (ys : list B) (ys' : list B')
+  (xs_corres : xs =~= xs')
+  (ys_corres : ys =~= ys')
+  : zip xs ys =~= zip xs' ys'.
+Proof.
+  revert ys ys' ys_corres.
+  induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl in *; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; eauto.
+  econstructor; [split; trivial | ss!].
+Qed.
+
 (** End CORRES_LEMMAS. *)
 
 Module Operation'.
@@ -497,27 +536,6 @@ End Client'.
 Instance Similarity_Client : Similarity Client.t Client'.t :=
   Client'.corres.
 
-Lemma fold_left_corres `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B -> A) (f' : A' -> B' -> M A')
-  (f_corres : param2func_corres f f')
-  : param2func_corres (fold_left f) (fold_left' f').
-Proof.
-  red. intros xs' z' y' H_OBS xs xs_corres z z_corres. revert z z' y' z_corres H_OBS.
-  induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl; intros.
-  - exists z. split; trivial. apply tryget_pure in H_OBS. congruence.
-  - apply tryget_bind in H_OBS. destruct H_OBS as (_y' & H_OBS & H_y'). eapply IH with (z' := _y'); trivial.
-    pose proof (f_corres z' x' _y' H_OBS z z_corres x x_corres) as (y & H_y & <-); trivial.
-Qed.
-
-Lemma zip_corres {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (xs : list A) (xs' : list A') (ys : list B) (ys' : list B')
-  (xs_corres : xs =~= xs')
-  (ys_corres : ys =~= ys')
-  : zip xs ys =~= zip xs' ys'.
-Proof.
-  revert ys ys' ys_corres.
-  induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl in *; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; eauto.
-  econstructor; [split; trivial | ss!].
-Qed.
-
 (** End BASIC_CORRES. *)
 
 Definition downward `{isSuperMonad M} {R : Type} {R' : Type} `{Similarity R R'} (m : identity R) (m' : M R') : Prop :=
@@ -592,63 +610,6 @@ Proof.
   intros r' H_r'. exact (f_corres x' y' z' r' H_r' x x_corres y y_corres z z_corres).
 Qed.
 
-Lemma downward_match_option `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (m : identity B) (m' : M B') (k : A -> identity B) (k' : A' -> M B') (o : option A) (o' : option A')
-  (m_corres : downward m m')
-  (k_corres : param1func_corres k k')
-  (o_corres : o =~= o')
-  : downward (match o with Some x => k x | None => m end) (match o' with Some x' => k' x' | None => m' end).
-Proof.
-  destruct o_corres; eauto. eapply downward_app1; trivial.
-Qed.
-
-Lemma downward_fold_left `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B -> identity A) (f' : A' -> B' -> M A') (xs : list B) (xs' : list B') (z : A) (z' : A')
-  (f_corres : param2func_corres f f')
-  (xs_corres : xs =~= xs')
-  (z_corres : z =~= z')
-  : downward (fold_left f xs z) (fold_left' f' xs' z').
-Proof.
-  revert z z' z_corres. induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl; intros.
-  - eapply downward_pure; trivial.
-  - change (fold_left f xs (f z x)) with (bind (M := identity) (isMonad := identity_isMonad) (f z x) (fun y : A => pure (fold_left f xs y))).
-    eapply downward_bind; eauto. intros r' H_r'. pose proof (f_corres z' x' r' H_r' z z_corres x x_corres) as (r & H_r & H_c). subst r.
-    exists (f z x). split; ss!.
-Qed.
-
-Ltac des :=
-  autounfold with session_hints in *;
-  repeat (
-    match goal with
-    | [ |- context C[ (?X =? ?Y)%Z ] ] =>
-      let H_OBS := fresh "H_OBS" in destruct (X =? Y) as [ | ] eqn: H_OBS; [rewrite Z.eqb_eq in H_OBS | rewrite Z.eqb_neq in H_OBS]
-    | [ |- context C[ (?X <? ?Y)%Z ] ] =>
-      let H_OBS := fresh "H_OBS" in destruct (X <? Y) as [ | ] eqn: H_OBS; [rewrite Z.ltb_lt in H_OBS | rewrite Z.ltb_nlt in H_OBS]
-    | [ |- context C[ (?X <=? ?Y)%Z ] ] =>
-      let H_OBS := fresh "H_OBS" in destruct (X <=? Y) as [ | ] eqn: H_OBS; [rewrite Z.leb_le in H_OBS | rewrite Z.leb_nle in H_OBS]
-    | [ |- context C[ (?X >=? ?Y)%Z ] ] => rewrite Z.geb_leb;
-      let H_OBS := fresh "H_OBS" in destruct (Y <=? X) as [ | ] eqn: H_OBS; [rewrite Z.leb_le in H_OBS | rewrite Z.leb_nle in H_OBS]
-    | [ |- context C[ (?X >? ?Y)%Z ] ] => rewrite Z.gtb_ltb;
-      let H_OBS := fresh "H_OBS" in destruct (Y <? X) as [ | ] eqn: H_OBS; [rewrite Z.ltb_lt in H_OBS | rewrite Z.ltb_nlt in H_OBS]
-    | [ |- context C[ (?X =? ?Y)%nat ] ] =>
-      let H_OBS := fresh "H_OBS" in destruct (X =? Y)%nat as [ | ] eqn: H_OBS; [rewrite Nat.eqb_eq in H_OBS | rewrite Nat.eqb_neq in H_OBS]
-    | [ |- context C[ (?X <? ?Y)%nat ] ] =>
-      let H_OBS := fresh "H_OBS" in destruct (X <? Y)%nat as [ | ] eqn: H_OBS; [rewrite Nat.ltb_lt in H_OBS | rewrite Nat.ltb_nlt in H_OBS]
-    | [ |- context C[ (?X <=? ?Y)%nat ] ] =>
-      let H_OBS := fresh "H_OBS" in destruct (X <=? Y)%nat as [ | ] eqn: H_OBS; [rewrite Nat.leb_le in H_OBS | rewrite Nat.leb_nle in H_OBS]
-    | [ H : context C[ (?X =? ?Y)%nat ] |- _ ] =>
-      let H_OBS := fresh "H_OBS" in destruct (X =? Y)%nat as [ | ] eqn: H_OBS in H; [rewrite Nat.eqb_eq in H_OBS | rewrite Nat.eqb_neq in H_OBS]
-    | [ H : context C[ (?X <? ?Y)%nat ] |- _ ] =>
-      let H_OBS := fresh "H_OBS" in destruct (X <? Y)%nat as [ | ] eqn: H_OBS in H; [rewrite Nat.ltb_lt in H_OBS | rewrite Nat.ltb_nlt in H_OBS]
-    | [ H : context C[ (?X <=? ?Y)%nat ] |- _ ] =>
-      let H_OBS := fresh "H_OBS" in destruct (X <=? Y)%nat as [ | ] eqn: H_OBS in H; [rewrite Nat.leb_le in H_OBS | rewrite Nat.leb_nle in H_OBS]
-    | [ H : _ /\ _ |- _ ] => let H' := fresh H in destruct H as [H H']
-    | [ H : (_, _)%core = (_, _)%core |- _ ] => rewrite -> Tac.pair_inv in H
-    | [ |- (_, _)%core = (_, _)%core ] => rewrite -> Tac.pair_inv
-    | [ H : exists x, _ |- _ ] => destruct H as [x H]
-    | [ H : is_similar_to _ _ |- _ ] => do 2 red in H
-    | [ |- is_similar_to _ _ ] => do 2 red
-    end
-  ).
-
 Tactic Notation "xintros0" ident( a ) :=
   let r' := fresh "res'" in
   let H_r' := fresh "H_res'" in
@@ -702,6 +663,67 @@ Tactic Notation "xintros3" ident( a ) ident( b ) ident( c ) :=
   lazymatch goal with
   | [ |- forall r', tryget ?m' = Some r' -> exists r, r =~= r' /\ ?m = r ] => change (downward m m')
   end.
+
+Tactic Notation "xapp" :=
+  first [eapply downward_app3 | eapply downward_app2 | eapply downward_app1 | eapply downward_app0]; eauto 2;
+  try ((repeat lazymatch goal with [ H : _ =~= _ |- _ ] => inversion H; subst end); (try do 2 red); trivial).
+
+Lemma downward_match_option `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (m : identity B) (m' : M B') (k : A -> identity B) (k' : A' -> M B') (o : option A) (o' : option A')
+  (m_corres : downward m m')
+  (k_corres : param1func_corres k k')
+  (o_corres : o =~= o')
+  : downward (match o with Some x => k x | None => m end) (match o' with Some x' => k' x' | None => m' end).
+Proof.
+  destruct o_corres; eauto. xapp.
+Qed.
+
+Lemma downward_fold_left `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B -> identity A) (f' : A' -> B' -> M A') (xs : list B) (xs' : list B') (z : A) (z' : A')
+  (f_corres : param2func_corres f f')
+  (xs_corres : xs =~= xs')
+  (z_corres : z =~= z')
+  : downward (fold_left f xs z) (fold_left' f' xs' z').
+Proof.
+  revert z z' z_corres. induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl; intros.
+  - eapply downward_pure; trivial.
+  - change (fold_left f xs (f z x)) with (bind (M := identity) (isMonad := identity_isMonad) (f z x) (fun y : A => pure (fold_left f xs y))).
+    eapply downward_bind; eauto. intros r' H_r'. pose proof (f_corres z' x' r' H_r' z z_corres x x_corres) as (r & H_r & H_c). subst r.
+    exists (f z x). split; ss!.
+Qed.
+
+Ltac des :=
+  autounfold with session_hints in *;
+  repeat (
+    match goal with
+    | [ |- context C[ (?X =? ?Y)%Z ] ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X =? Y) as [ | ] eqn: H_OBS; [rewrite Z.eqb_eq in H_OBS | rewrite Z.eqb_neq in H_OBS]
+    | [ |- context C[ (?X <? ?Y)%Z ] ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X <? Y) as [ | ] eqn: H_OBS; [rewrite Z.ltb_lt in H_OBS | rewrite Z.ltb_nlt in H_OBS]
+    | [ |- context C[ (?X <=? ?Y)%Z ] ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X <=? Y) as [ | ] eqn: H_OBS; [rewrite Z.leb_le in H_OBS | rewrite Z.leb_nle in H_OBS]
+    | [ |- context C[ (?X >=? ?Y)%Z ] ] => rewrite Z.geb_leb;
+      let H_OBS := fresh "H_OBS" in destruct (Y <=? X) as [ | ] eqn: H_OBS; [rewrite Z.leb_le in H_OBS | rewrite Z.leb_nle in H_OBS]
+    | [ |- context C[ (?X >? ?Y)%Z ] ] => rewrite Z.gtb_ltb;
+      let H_OBS := fresh "H_OBS" in destruct (Y <? X) as [ | ] eqn: H_OBS; [rewrite Z.ltb_lt in H_OBS | rewrite Z.ltb_nlt in H_OBS]
+    | [ |- context C[ (?X =? ?Y)%nat ] ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X =? Y)%nat as [ | ] eqn: H_OBS; [rewrite Nat.eqb_eq in H_OBS | rewrite Nat.eqb_neq in H_OBS]
+    | [ |- context C[ (?X <? ?Y)%nat ] ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X <? Y)%nat as [ | ] eqn: H_OBS; [rewrite Nat.ltb_lt in H_OBS | rewrite Nat.ltb_nlt in H_OBS]
+    | [ |- context C[ (?X <=? ?Y)%nat ] ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X <=? Y)%nat as [ | ] eqn: H_OBS; [rewrite Nat.leb_le in H_OBS | rewrite Nat.leb_nle in H_OBS]
+    | [ H : context C[ (?X =? ?Y)%nat ] |- _ ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X =? Y)%nat as [ | ] eqn: H_OBS in H; [rewrite Nat.eqb_eq in H_OBS | rewrite Nat.eqb_neq in H_OBS]
+    | [ H : context C[ (?X <? ?Y)%nat ] |- _ ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X <? Y)%nat as [ | ] eqn: H_OBS in H; [rewrite Nat.ltb_lt in H_OBS | rewrite Nat.ltb_nlt in H_OBS]
+    | [ H : context C[ (?X <=? ?Y)%nat ] |- _ ] =>
+      let H_OBS := fresh "H_OBS" in destruct (X <=? Y)%nat as [ | ] eqn: H_OBS in H; [rewrite Nat.leb_le in H_OBS | rewrite Nat.leb_nle in H_OBS]
+    | [ H : _ /\ _ |- _ ] => let H' := fresh H in destruct H as [H H']
+    | [ H : (_, _)%core = (_, _)%core |- _ ] => rewrite -> Tac.pair_inv in H
+    | [ |- (_, _)%core = (_, _)%core ] => rewrite -> Tac.pair_inv
+    | [ H : exists x, _ |- _ ] => destruct H as [x H]
+    | [ H : is_similar_to _ _ |- _ ] => do 2 red in H
+    | [ |- is_similar_to _ _ ] => do 2 red
+    end
+  ).
 
 Module Server_nat.
 
@@ -776,85 +798,38 @@ Module Server_nat.
 
   Section refine_coq_oneOffVersionVector.
 
-  Let coq_oneOffVersionVector_u64 :
-    ServerSide.coq_oneOffVersionVector =
-    fun v1 : list u64 => fun v2 : list u64 => do
-    let loop_step (acc : bool * bool) (elem : u64 * u64) : bool * bool :=
+  Definition coq_oneOffVersionVector (v1 : list nat) (v2 : list nat) : bool :=
+    let loop_step (acc : bool * bool) (elem : nat * nat) : bool * bool :=
       let '(e1, e2) := elem in
       let '(output, canApply) := acc in
-      if canApply && (uint.Z (w64_word_instance.(word.add) e1 (W64 1)) =? uint.Z e2) then do
-        ret (output, false)
-      else if uint.Z e1 >=? uint.Z e2 then do
-        ret (output, canApply)
-      else do
-        ret (false, canApply)
+      if canApply && (e1 + 1 =? e2)%nat then
+        (output, false)
+      else
+        ((e2 <=? e1)%nat && output, canApply)
     in
-    do
-    '(output, canApply) <- fold_left loop_step (zip v1 v2) (true, true);
-    ret (output && negb canApply).
-  Proof.
-    reflexivity.
-  Defined.
-
-  Context `{isSuperMonad M}.
-
-  Definition coq_oneOffVersionVector (v1 : list nat) (v2 : list nat) : M bool :=
-    let loop_step (acc : bool * bool) (elem : nat * nat) : M (bool * bool)%type :=
-      let '(e1, e2) := elem in
-      let '(output, canApply) := acc in
-      if canApply && (e1 + 1 =? e2)%nat then do
-        ret (output, false)
-      else do
-        ret ((e2 <=? e1)%nat && output, canApply)
-    in
-    do
-    '(output, canApply) <- fold_left' loop_step (zip v1 v2) (true, true);
-    ret (output && negb canApply).
+    let (output, canApply) := fold_left loop_step (zip v1 v2) (true, true) in
+    (output && negb canApply).
 
   Lemma coq_oneOffVersionVector_corres
-    : param2func_corres (M := M) ServerSide.coq_oneOffVersionVector coq_oneOffVersionVector.
+    : ServerSide.coq_oneOffVersionVector =~= coq_oneOffVersionVector.
   Proof.
-    rewrite coq_oneOffVersionVector_u64. unfold coq_oneOffVersionVector.
-    xintros2 v1 v2. eapply downward_bind.
-    { eapply downward_fold_left.
-      - clear. xintros2 acc elem. destruct acc as [output canApply], acc' as [output' canApply']; simpl in *. destruct elem as [e1 e2], elem' as [e1' e2']; simpl in *.
-        destruct acc_corres as [output_corres canApply_corres]; simpl in *. destruct elem_corres as [e1_corres e2_corres]; simpl in *.
-        do 2 red in output_corres, canApply_corres, e1_corres, e2_corres. red; Tac.des; intros.
-        + destruct canApply' as [ | ]; simpl in *; (destruct (e1' + 1 =? e2')%nat as [ | ] eqn: H_OBS'; [rewrite Nat.eqb_eq in H_OBS' | rewrite Nat.eqb_neq in H_OBS']); apply tryget_pure in H1; try word; subst.
-          * exists (output', true). split; simpl.
-            { split; simpl; do 2 red; trivial. symmetry. replace (uint.nat e2 <=? uint.nat e1)%nat with true by now symmetry; rewrite Nat.leb_le; word. eapply andb_true_l. }
-            { rewrite -> CONSTANT_unfold in *. word. }
-          * exists (output', false). split; simpl.
-            { split; simpl; do 2 red; trivial. symmetry. replace (uint.nat e2 <=? uint.nat e1)%nat with true by now symmetry; rewrite Nat.leb_le; word. eapply andb_true_l. }
-            { rewrite -> CONSTANT_unfold in *. word. }
-        + destruct canApply' as [ | ]; simpl in *; (destruct (e1' + 1 =? e2')%nat as [ | ] eqn: H_OBS'; [rewrite Nat.eqb_eq in H_OBS' | rewrite Nat.eqb_neq in H_OBS']); apply tryget_pure in H1; try word; subst.
-          * exists (output', false). split; simpl.
-            { split; simpl; do 2 red; trivial. }
-            { trivial. }
-          * exists (false, false). split; simpl.
-            { split; simpl; do 2 red; trivial. replace (uint.nat e2 <=? uint.nat e1)%nat with false by now symmetry; rewrite Nat.leb_nle; word. reflexivity. }
-            { trivial. }
-        + destruct canApply' as [ | ]; simpl in *; (destruct (e1' + 1 =? e2')%nat as [ | ] eqn: H_OBS'; [rewrite Nat.eqb_eq in H_OBS' | rewrite Nat.eqb_neq in H_OBS']); apply tryget_pure in H1; try word; subst.
-          * exists (output', true). split; simpl.
-            { split; simpl; do 2 red; trivial. symmetry. replace (uint.nat e2 <=? uint.nat e1)%nat with true by now symmetry; rewrite Nat.leb_le; word. eapply andb_true_l. }
-            { rewrite -> CONSTANT_unfold in *. trivial. }
-          * exists (output', false). split; simpl.
-            { split; simpl; do 2 red; trivial. symmetry. replace (uint.nat e2 <=? uint.nat e1)%nat with true by now symmetry; rewrite Nat.leb_le; word. eapply andb_true_l. }
-            { rewrite -> CONSTANT_unfold in *. trivial. }
-        + destruct canApply' as [ | ]; simpl in *; (destruct (e1' + 1 =? e2')%nat as [ | ] eqn: H_OBS'; [rewrite Nat.eqb_eq in H_OBS' | rewrite Nat.eqb_neq in H_OBS']); apply tryget_pure in H1; try word; subst.
-          * exists (false, true). split; simpl.
-            { split; simpl; do 2 red; trivial. symmetry. replace (uint.nat e2 <=? uint.nat e1)%nat with false by now symmetry; rewrite Nat.leb_nle; word. eapply andb_true_l. }
-            { rewrite -> CONSTANT_unfold in *. trivial. }
-          * exists (false, false). split; simpl.
-            { split; simpl; do 2 red; trivial. symmetry. replace (uint.nat e2 <=? uint.nat e1)%nat with false by now symmetry; rewrite Nat.leb_nle; word. eapply andb_true_l. }
-            { rewrite -> CONSTANT_unfold in *. trivial. }
+    intros v1 v1' v1_corres v2 v2' v2_corres. unfold ServerSide.coq_oneOffVersionVector, coq_oneOffVersionVector.
+    eapply let2_corres.
+    { eapply fold_left_corres.
+      - intros [output canApply] [output' canApply']; simpl in *.
+        intros [output_corres canApply_corres]; simpl in *.
+        intros [e1 e2] [e1' e2']; simpl in *.
+        intros [e1_corres e2_corres]; simpl in *.
+        eapply ite_corres.
+        + eapply andb_corres; trivial.
+          do 2 red in e1_corres, e2_corres |- *. rewrite -> CONSTANT_unfold in *. des; try word.
+        + split; trivial; simpl. do 2 red; reflexivity.
+        + des; simpl; split; trivial; try word. do 2 red; reflexivity.
       - eapply zip_corres; trivial.
-      - split; simpl; do 2 red; trivial.
+      - split; simpl; do 2 red; reflexivity.
     }
-    intros [output canApply] [output' canApply']; simpl in *.
-    intros [output_corres canApply_corres]; simpl in *.
-    eapply downward_pure. do 2 red in output_corres, canApply_corres |- *.
-    subst output' canApply'; destruct output, canApply; reflexivity.
+    intros output output' output_corres canApply canApply' canApply_corres.
+    do 2 red in output_corres, canApply_corres |- *; congruence.
   Qed.
 
   End refine_coq_oneOffVersionVector.
