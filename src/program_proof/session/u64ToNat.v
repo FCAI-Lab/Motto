@@ -1001,9 +1001,9 @@ Module Server_nat.
 
   Section refine_coq_receiveGossip.
 
-  Definition ServerSide_coq_receiveGossip :
+  Lemma ServerSide_coq_receiveGossip :
     ServerSide.coq_receiveGossip =
-    fun server : Server.t => fun request : Message.t => do
+    fun server : Server.t => fun request : Message.t =>
     if (length request.(Message.S2S_Gossip_Operations) =? 0)%nat then do
       ret server
     else do
