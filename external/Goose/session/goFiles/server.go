@@ -131,7 +131,7 @@ func binarySearch(s []Operation, needle Operation) uint64 {
 	var i = uint64(0)
 	var j = uint64(len(s))
 	for i < j {
-		mid := i + (j-i)/2
+		mid := i + (j - i)/2
 		if lexicographicCompare(needle.VersionVector, s[mid].VersionVector) {
 			i = mid + 1
 		} else {
