@@ -1007,7 +1007,7 @@ Module Server_nat.
     if (length request.(Message.S2S_Gossip_Operations) =? 0)%nat then do
       ret server
     else do
-      'loop1 <- fold_left
+      'TMP <- fold_left
         ( fun acc : Server.t => fun elem : Operation.t => do
           'server <- acc;
           if ServerSide.coq_oneOffVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector) then do
@@ -1039,8 +1039,8 @@ Module Server_nat.
         )
         request.(Message.S2S_Gossip_Operations)
         server;
-      let server := loop1 in do
-      'loop2 <- fold_left
+      let server := TMP in do
+      'TMP <- fold_left
         ( fun acc : Server.t * u64 * list u64 => fun elem : Operation.t =>
           let '(server, i, seen) := acc in do
           if ServerSide.coq_oneOffVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector) then do
@@ -1050,8 +1050,8 @@ Module Server_nat.
         )
         server.(Server.PendingOperations)
         (server, W64 0, []);
-      let '(server, _, seen) := loop2 in do
-      'loop3 <- fold_left
+      let '(server, _, seen) := TMP in do
+      'TMP <- fold_left
         ( fun acc : nat * nat * list Operation.t => fun elem : Operation.t =>
           let '(i, j, output) := acc in
           match seen !! j with
@@ -1066,7 +1066,7 @@ Module Server_nat.
         )
         server.(Server.PendingOperations)
         (0%nat, 0%nat, []);
-      let '(_, _, output) := loop3 in do
+      let '(_, _, output) := TMP in do
       ret
         {|
           Server.Id := server.(Server.Id);
