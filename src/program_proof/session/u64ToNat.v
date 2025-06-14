@@ -58,10 +58,20 @@ Instance Similarity_Data : Similarity _Data.w _Data.w :=
 
 (** Section MONAD. *)
 
-#[universes(polymorphic=yes)]
-Class isMonad@{d c} (M : Type@{d} -> Type@{c}) : Type :=
+#[universes(polymorphic=yes), projections(primitive)]
+Class isMonad@{d c} (M : Type@{d} -> Type@{c}) : Type@{max(d + 1, c + 1)} :=
   { bind {A : Type@{d}} {B : Type@{d}} (m : M A) (k : A -> M B) : M B
   ; pure {A : Type@{d}} : A -> M A
+  ; bind_cong2 {A : Type@{d}} {B : Type@{d}} (m1 : M A) (m2 : M A) (k1 : A -> M B) (k2 : A -> M B)
+    (m1_eq_m2 : m1 = m2)
+    (k1_eq_k2 : forall x : A, k1 x = k2 x)
+    : bind m1 k1 = bind m2 k2
+  ; bind_assoc {A : Type@{d}} {B : Type@{d}} {C : Type@{d}} (m : M A) (k : A -> M B) (k' : B -> M C)
+    : bind m (fun x => bind (k x) k') = bind (bind m k) k'
+  ; bind_pure_l {A : Type@{d}} {B : Type@{d}} (k : A -> M B) (x : A)
+    : bind (pure x) k = k x
+  ; bind_pure_r {A : Type@{d}} (m : M A)
+    : bind m pure = m
   }.
 
 Infix ">>=" := bind.
@@ -92,25 +102,55 @@ Notation "t" := t (in custom do_notation at level 0, t constr).
 Definition identity@{u} (A : Type@{u}) : Type@{u} :=
   A.
 
-#[global]
+#[global, program]
 Instance identity_isMonad : isMonad identity :=
   { pure {A} (x : A) := x
   ; bind {A} {B} (m : A) (k : A -> B) := k m
   }.
+Next Obligation.
+  intros; cbn in *. congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. congruence.
+Qed.
 
 #[universes(polymorphic=yes)]
 Definition Err@{u} (A : Type@{u}) : Type@{u} :=
   (bool * A)%type.
 
-#[global]
+#[global, program]
 Instance Err_isMonad : isMonad Err :=
   { pure {A} (x : A) := (true, x)
   ; bind {A} {B} (m : Err A) (k : A -> Err B) :=
     let (b, y) := k m.2 in
     (m.1 && b, y)
   }.
+Next Obligation.
+  intros; cbn in *. destruct m1, m2; cbn in *.
+  destruct (k1 a) as [? ?] eqn: H_OBS;
+  destruct (k2 a0) as [? ?] eqn: H_OBS';
+  cbn in *; congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. destruct m as [? ?]; cbn in *.
+  destruct (k a) as [? ?] eqn: H_OBS; cbn in *.
+  destruct (k' b1) as [? ?] eqn: H_OBS'; cbn in *.
+  rewrite andb_assoc; congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. destruct (k x) as [? ?]; trivial.
+Qed.
+Next Obligation.
+  intros; cbn in *. destruct m as [? ?]; simpl. rewrite andb_true_r. trivial.
+Qed.
 
-#[global]
+#[global, program]
 Instance option_isMonad : isMonad option :=
   { pure {A} := @Some A
   ; bind {A} {B} (m : option A) (k : A -> option B) :=
@@ -119,6 +159,18 @@ Instance option_isMonad : isMonad option :=
     | None => None
     end
   }.
+Next Obligation.
+  intros; cbn in *. destruct m1, m2; cbn in *; try congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. destruct m as [? | ]; cbn in *; try congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. destruct (k x) as [? | ]; cbn in *; try congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. destruct m as [? | ]; cbn in *; try congruence.
+Qed.
 
 Fixpoint fold_left' {M : Type -> Type} `{isMonad M} {A : Type} {B : Type} (f : A -> B -> M A) (xs : list B) (z : A) : M A :=
   match xs with
