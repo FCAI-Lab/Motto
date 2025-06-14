@@ -188,10 +188,10 @@ Fixpoint fold_left' {M : Type -> Type} `{isMonad M} {A : Type} {B : Type} (f : A
 Class isSuperMonad (M : Type -> Type) `{isMonad M} : Type :=
   { put_if {A : Type} (guard : bool) : A -> M A
   ; tryget {A : Type} : M A -> option A
-  ; tryget_put_if_true {A : Type} (x : A)
-    : tryget (put_if true x) = Some x
-  ; tryget_put_if_false {A : Type} (x : A)
-    : tryget (put_if false x) = None
+  ; tryget_put_if_true {A : Type} (x : A) (r : option A)
+    : tryget (put_if true x) = r <-> Some x = r
+  ; tryget_put_if_false {A : Type} (x : A) (r : option A)
+    : tryget (put_if false x) = r <-> None = r
   ; tryget_pure {A : Type} (x : A)
     : forall z : A, tryget (pure x) = Some z -> x = z
   ; tryget_bind {A : Type} {B : Type} (m : M A) (k : A -> M B)
@@ -204,10 +204,10 @@ Instance Err_isSuperMonad : isSuperMonad Err :=
   ; tryget {A} (m : Err A) := if m.1 then Some m.2 else None
   }.
 Next Obligation.
-  intros. simpl in *. trivial.
+  intros. simpl in *. eauto.
 Qed.
 Next Obligation.
-  intros. simpl in *. congruence.
+  intros. simpl in *. eauto.
 Qed.
 Next Obligation.
   intros. simpl in *. congruence.
@@ -224,10 +224,10 @@ Instance option_isSuperMonad : isSuperMonad option :=
   ; tryget {A} (m : option A) := m
   }.
 Next Obligation.
-  intros. simpl in *. trivial.
+  intros. simpl in *. eauto.
 Qed.
 Next Obligation.
-  intros. unfold pure in *. simpl in *. congruence.
+  intros. unfold pure in *. eauto.
 Qed.
 Next Obligation.
   intros. unfold pure in *. simpl in *. congruence.
@@ -267,12 +267,104 @@ Definition param3func_corres `{isSuperMonad M} {A : Type} {A' : Type} {B : Type}
 Instance Similarity_u64 : Similarity u64 nat :=
   fun u => fun n => uint.nat u = n /\ uint.Z u <= CONSTANT - 1.
 
+(** Section CORRES_LEMMAS. *)
+
+Lemma list_corres_length {A : Type} {A' : Type} {SIM : Similarity A A'} (xs : list A) (xs' : list A')
+  (xs_corres : xs =~= xs')
+  : @length A xs = @length A' xs'.
+Proof.
+  induction xs_corres; simpl; congruence.
+Qed.
+
+Lemma last_corres {A : Type} {A' : Type} {A_SIM : Similarity A A'} (xs : list A) (xs' : list A')
+  (xs_corres : xs =~= xs')
+  : @last A xs =~= @last A' xs'.
+Proof.
+  induction xs_corres as [ | ? ? ? ? ? [ | ? ? ? ? ? ?] ?]; simpl; eauto.
+Qed.
+
+Lemma app_corres {A : Type} {A' : Type} {A_SIM : Similarity A A'} (xs : list A) (xs' : list A') (ys : list A) (ys' : list A')
+  (xs_corres : xs =~= xs')
+  (ys_corres : ys =~= ys')
+  : @app A xs ys =~= @app A' xs' ys'.
+Proof.
+  revert ys ys' ys_corres; induction xs_corres; simpl; eauto.
+Qed.
+
+Lemma ite_corres {A : Type} {A' : Type} {A_SIM : Similarity A A'} (b : bool) (b' : bool) (x : A) (x' : A') (y : A) (y' : A')
+  (b_corres : b =~= b')
+  (x_corres : x =~= x')
+  (y_corres : y =~= y')
+  : (if b then x else y) =~= (if b' then x' else y').
+Proof.
+  do 2 red in b_corres; destruct b as [ | ]; subst b'; simpl; eauto.
+Qed.
+
+Lemma take_corres {A : Type} {A' : Type} {A_SIM : Similarity A A'} (n : nat) (n' : nat) (xs : list A) (xs' : list A')
+  (n_corres : n =~= n')
+  (xs_corres : xs =~= xs')
+  : @take A n xs =~= @take A' n' xs'.
+Proof.
+  do 2 red in n_corres; subst n'; revert xs xs' xs_corres; induction n as [ | n IH]; intros ? ? xs_corres; destruct xs_corres as [ | x x' x_corres xs xs' xs_corres]; simpl in *; eauto.
+Qed.
+
+Lemma drop_corres {A : Type} {A' : Type} {A_SIM : Similarity A A'} (n : nat) (n' : nat) (xs : list A) (xs' : list A')
+  (n_corres : n =~= n')
+  (xs_corres : xs =~= xs')
+  : @drop A n xs =~= @drop A' n' xs'.
+Proof.
+  do 2 red in n_corres; subst n'; revert xs xs' xs_corres; induction n as [ | n IH]; intros ? ? xs_corres; destruct xs_corres as [ | x x' x_corres xs xs' xs_corres]; simpl in *; eauto.
+Qed.
+
+Lemma andb_corres (b1 : bool) (b1' : bool) (b2 : bool) (b2' : bool)
+  (b1_corres : b1 =~= b1')
+  (b2_corres : b2 =~= b2')
+  : b1 && b2 =~= b1' && b2'.
+Proof.
+  do 2 red in b1_corres, b2_corres |- *; congruence.
+Qed.
+
+Lemma orb_corres (b1 : bool) (b1' : bool) (b2 : bool) (b2' : bool)
+  (b1_corres : b1 =~= b1')
+  (b2_corres : b2 =~= b2')
+  : b1 || b2 =~= b1' || b2'.
+Proof.
+  do 2 red in b1_corres, b2_corres |- *; congruence.
+Qed.
+
+Lemma negb_corres (b1 : bool) (b1' : bool)
+  (b1_corres : b1 =~= b1')
+  : negb b1 =~= negb b1'.
+Proof.
+  do 2 red in b1_corres |- *; congruence.
+Qed.
+
+Lemma ite_corres_negb {A : Type} {A' : Type} {A_SIM : Similarity A A'} (b : bool) (b' : bool) (x : A) (x' : A') (y : A) (y' : A')
+  (b_corres : negb b =~= b')
+  (x_corres : x =~= x')
+  (y_corres : y =~= y')
+  : (if b then x else y) =~= (if b' then y' else x').
+Proof.
+  do 2 red in b_corres; destruct b as [ | ]; subst b'; simpl in *; eauto.
+Qed.
+
+Lemma match_option_corres {A : Type} {A' : Type} {B : Type} {B' : Type} {A_SIM : Similarity A A'} {B_SIM : Similarity B B'} (x : option A) (x' : option A') (f : A -> B) (f' : A' -> B') (z : B) (z' : B')
+  (x_corres : x =~= x')
+  (f_corres : f =~= f')
+  (z_corres : z =~= z')
+  : (match x with Some y => f y | None => z end) =~= (match x' with Some y' => f' y' | None => z' end).
+Proof.
+  destruct x_corres; eauto.
+Qed.
+
+(** End CORRES_LEMMAS. *)
+
 Module Operation'.
 
   Record t : Type :=
     mk
     { VersionVector : list nat
-    ; Data : nat
+    ; Data : _Data.w
     }.
 
   Record corres (op : Operation.t) (op' : Operation'.t) : Prop :=
@@ -453,6 +545,62 @@ Proof.
   red. intros r' H_r'. apply tryget_pure in H_r'. exists x. split; ss!.
 Qed.
 
+Lemma downward_put_if_false `{isSuperMonad M} {R : Type} {R' : Type} `{Similarity R R'} (x : R) (x' : R')
+  : downward x (put_if false x').
+Proof.
+  intros r' H_r'. rewrite tryget_put_if_false in H_r'. congruence.
+Qed.
+
+Lemma downward_put_if_true `{isSuperMonad M} {R : Type} {R' : Type} `{Similarity R R'} (x : R) (x' : R')
+  (x_corres : x =~= x')
+  : downward x (put_if true x').
+Proof.
+  intros r' H_r'. rewrite tryget_put_if_true in H_r'. exists x; split; ss!.
+Qed.
+
+Lemma downward_app0 `{isSuperMonad M} {A : Type} {A' : Type} `{Similarity A A'} (f : identity A) (f' : M A')
+  (f_corres : param0func_corres f f')
+  : downward f f'.
+Proof.
+  trivial.
+Qed.
+
+Lemma downward_app1 `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> identity B) (f' : A' -> M B') (x : A) (x' : A')
+  (f_corres : param1func_corres f f')
+  (x_corres : x =~= x')
+  : downward (f x) (f' x').
+Proof.
+  intros r' H_r'. exact (f_corres x' r' H_r' x x_corres).
+Qed.
+
+Lemma downward_app2 `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} (f : A -> B -> identity C) (f' : A' -> B' -> M C') (x : A) (x' : A') (y : B) (y' : B')
+  (f_corres : param2func_corres f f')
+  (x_corres : x =~= x')
+  (y_corres : y =~= y')
+  : downward (f x y) (f' x' y').
+Proof.
+  intros r' H_r'. exact (f_corres x' y' r' H_r' x x_corres y y_corres).
+Qed.
+
+Lemma downward_app3 `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} {D : Type} {D' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} `{Similarity D D'} (f : A -> B -> C -> identity D) (f' : A' -> B' -> C' -> M D') (x : A) (x' : A') (y : B) (y' : B') (z : C) (z' : C')
+  (f_corres : param3func_corres f f')
+  (x_corres : x =~= x')
+  (y_corres : y =~= y')
+  (z_corres : z =~= z')
+  : downward (f x y z) (f' x' y' z').
+Proof.
+  intros r' H_r'. exact (f_corres x' y' z' r' H_r' x x_corres y y_corres z z_corres).
+Qed.
+
+Lemma downward_match_option `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (m : identity B) (m' : M B') (k : A -> identity B) (k' : A' -> M B') (o : option A) (o' : option A')
+  (m_corres : downward m m')
+  (k_corres : param1func_corres k k')
+  (o_corres : o =~= o')
+  : downward (match o with Some x => k x | None => m end) (match o' with Some x' => k' x' | None => m' end).
+Proof.
+  destruct o_corres; eauto. eapply downward_app1; trivial.
+Qed.
+
 Lemma downward_fold_left `{isSuperMonad M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B -> identity A) (f' : A' -> B' -> M A') (xs : list B) (xs' : list B') (z : A) (z' : A')
   (f_corres : param2func_corres f f')
   (xs_corres : xs =~= xs')
@@ -556,6 +704,8 @@ Tactic Notation "xintros3" ident( a ) ident( b ) ident( c ) :=
   end.
 
 Module Server_nat.
+
+  Import SessionPrelude.
 
   Section refine_coq_compareVersionVector.
 
@@ -730,7 +880,96 @@ Module Server_nat.
 
   End refine_coq_equalSlices.
 
-  (* Use SessionPrelude.deleteAt instead of coq_deleteAtIndexOperation, coq_deleteAtIndexMessage. *)
+  Section refine_coq_sortedInsert.
+
+  Fixpoint coq_sortedInsert (ops : list Operation'.t) (op : Operation'.t) : list Operation'.t :=
+    match ops with
+    | [] => [op]
+    | op' :: ops' =>
+      if coq_lexicographicCompare op'.(Operation'.VersionVector) op.(Operation'.VersionVector) then
+        op :: op' :: ops'
+      else if coq_equalSlices op'.(Operation'.VersionVector) op.(Operation'.VersionVector) then
+        op' :: ops'
+      else
+        op' :: coq_sortedInsert ops' op
+    end.
+
+  Lemma coq_sortedInsert_corres
+    : ServerSide.coq_sortedInsert =~= coq_sortedInsert.
+  Proof.
+    intros xs xs' xs_corres; induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; intros y y' y_corres; simpl in *; eauto.
+    inversion x_corres; subst. inversion y_corres; subst. eapply ite_corres; eauto.
+    - eapply coq_lexicographicCompare_corres; trivial.
+    - eapply ite_corres; eauto. eapply coq_equalSlices_corres; trivial.
+  Qed.
+
+  End refine_coq_sortedInsert.
+
+  Section refine_coq_deleteAtIndexOperation.
+
+  Context `{isSuperMonad M}.
+
+  Definition coq_deleteAtIndexOperation (l : list Operation'.t) (index : nat) : M (list Operation'.t) :=
+    put_if (index + 1 <? length l)%nat (deleteAt l index).
+
+  Lemma coq_deleteAtIndexOperation_corres
+    : param2func_corres (M := M) ServerSide.coq_deleteAtIndexOperation coq_deleteAtIndexOperation.
+  Proof.
+    xintros2 l index. unfold ServerSide.coq_deleteAtIndexOperation, coq_deleteAtIndexOperation.
+    red; intros; des.
+    - rewrite -> (tryget_put_if_true (deleteAt l' index')) in H1.
+      assert (r' = deleteAt l' index') as -> by congruence. clear H1.
+      exists (deleteAt l index). split; trivial.
+      unfold deleteAt; eapply app_corres; [eapply take_corres | eapply drop_corres]; trivial.
+      do 2 red; congruence.
+    - rewrite -> tryget_put_if_false in H1. congruence.
+  Qed.
+
+  End refine_coq_deleteAtIndexOperation.
+
+  Section refine_coq_deleteAtIndexMessage.
+
+  Context `{isSuperMonad M}.
+
+  Definition coq_deleteAtIndexMessage (l : list Message'.t) (index : nat) : M (list Message'.t) :=
+    put_if (index + 1 <? length l)%nat (deleteAt l index).
+
+  Lemma coq_deleteAtIndexMessage_corres
+    : param2func_corres (M := M) ServerSide.coq_deleteAtIndexMessage coq_deleteAtIndexMessage.
+  Proof.
+    xintros2 l index. unfold ServerSide.coq_deleteAtIndexMessage, coq_deleteAtIndexMessage.
+    red; intros; des.
+    - rewrite -> (tryget_put_if_true (deleteAt l' index')) in H1.
+      assert (r' = deleteAt l' index') as -> by congruence. clear H1.
+      exists (deleteAt l index). split; trivial.
+      unfold deleteAt; eapply app_corres; [eapply take_corres | eapply drop_corres]; trivial.
+      do 2 red; congruence.
+    - rewrite -> tryget_put_if_false in H1. congruence.
+  Qed.
+
+  End refine_coq_deleteAtIndexMessage.
+
+  Section refine_coq_getDataFromOperationLog.
+
+  Context `{isSuperMonad M}.
+
+  Definition coq_getDataFromOperationLog (ops : list Operation'.t) : M _Data.w :=
+    match last ops with
+    | Some op => put_if true op.(Operation'.Data)
+    | None => put_if false (IntoVal_def _Data.w)
+    end.
+
+  Lemma coq_getDataFromOperationLog_corres
+    : param1func_corres (M := M) ServerSide.coq_getDataFromOperationLog coq_getDataFromOperationLog.
+  Proof.
+    xintros1 ops. unfold ServerSide.coq_getDataFromOperationLog, coq_getDataFromOperationLog.
+    eapply downward_match_option.
+    - eapply downward_put_if_false.
+    - xintros1 op. eapply downward_put_if_true. inversion op_corres; subst. trivial.
+    - eapply last_corres; trivial.
+  Qed.
+
+  End refine_coq_getDataFromOperationLog.
 
 End Server_nat.
 
