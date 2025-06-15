@@ -819,12 +819,12 @@ Module Server_nat.
 
   Section refine_coq_lexicographicCompare.
 
-  Fixpoint coq_lexicographicCompare (v1: list nat) (v2: list nat) : bool :=
+  Fixpoint coq_lexicographicCompare (v1 : list nat) (v2 : list nat) : bool :=
     match v1, v2 with
     | [], [] => false
     | [], h2 :: t2 => false
     | h1 :: t1, [] => true
-    | h1 :: t1, h2 :: t2 => if (h1 =? h2)%nat then coq_lexicographicCompare t1 t2 else uint.Z h1 >? uint.Z h2
+    | h1 :: t1, h2 :: t2 => if (h1 =? h2)%nat then coq_lexicographicCompare t1 t2 else (h1 >? h2)%nat
     end.
 
   Lemma coq_lexicographicCompare_corres
@@ -855,15 +855,15 @@ Module Server_nat.
   Context `{MonadError M}.
 
   Definition coq_oneOffVersionVector (v1 : list nat) (v2 : list nat) : M bool :=
+    let loop_step (acc : bool * bool) (elem : nat * nat) : bool * bool :=
+      let '(e1, e2) := elem in
+      let '(output, canApply) := acc in
+      if canApply && (e1 + 1 =? e2)%nat then
+        (output, false)
+      else
+        ((e2 <=? e1)%nat && output, canApply)
+    in
     put_if (length v1 =? length v2)%nat (
-      let loop_step (acc : bool * bool) (elem : nat * nat) : bool * bool :=
-        let '(e1, e2) := elem in
-        let '(output, canApply) := acc in
-        if canApply && (e1 + 1 =? e2)%nat then
-          (output, false)
-        else
-          ((e2 <=? e1)%nat && output, canApply)
-      in
       let (output, canApply) := fold_left loop_step (zip v1 v2) (true, true) in
       output && negb canApply
     ).
@@ -896,7 +896,7 @@ Module Server_nat.
 
   Section refine_coq_equalSlices.
 
-  Definition coq_equalSlices (s1 : list nat) (s2: list nat) : bool :=
+  Definition coq_equalSlices (s1 : list nat) (s2 : list nat) : bool :=
     bool_decide (s1 = s2).
 
   Lemma coq_equalSlices_corres
