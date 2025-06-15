@@ -85,7 +85,7 @@ func maxTS(t1 []uint64, t2 []uint64) []uint64 {
 	var output = make([]uint64, len(t1))
 	for i < length {
 		output[i] = maxTwoInts(t1[i], t2[i])
-		i += 1
+		i++
 	}
 	return output
 }
@@ -99,13 +99,10 @@ func oneOffVersionVector(v1 []uint64, v2 []uint64) bool {
 	for i < l {
 		if canApply && v1[i]+1 == v2[i] {
 			canApply = false
-			i = i + 1
-			continue
-		}
-		if v1[i] < v2[i] {
+		} else if v1[i] < v2[i] {
 			output = false
 		}
-		i = i + 1
+		i++
 	}
 
 	return output && !canApply
@@ -189,7 +186,7 @@ func receiveGossip(server Server, request Message) Server {
 		} else if !compareVersionVector(s.VectorClock, request.S2S_Gossip_Operations[i].VersionVector) {
 			s.PendingOperations = sortedInsert(s.PendingOperations, request.S2S_Gossip_Operations[i])
 		}
-		i = i + 1
+		i++
 	}
 
 	i = uint64(0)
@@ -200,7 +197,7 @@ func receiveGossip(server Server, request Message) Server {
 			s.VectorClock = maxTS(s.VectorClock, s.PendingOperations[i].VersionVector)
 			seen = append(seen, i)
 		}
-		i = i + 1
+		i++
 	}
 
 	i = uint64(0)
@@ -209,14 +206,14 @@ func receiveGossip(server Server, request Message) Server {
 	for i < uint64(len(s.PendingOperations)) {
 		if j < uint64(len(seen)) {
 			if (i == seen[j]) {
-				j = j + 1
+				j++
 			} else {
 				output = append(output, s.PendingOperations[i])
 			}
 		} else {
 			output = append(output, s.PendingOperations[i])
 		}
-		i = i + 1
+		i++
 	}
 
 	s.PendingOperations = output
@@ -267,7 +264,7 @@ func processClientRequest(server Server, request Message) (bool, Server, Message
 			return false, s, reply
 		}
 
-		s.VectorClock[server.Id] += 1
+		s.VectorClock[s.Id] += 1
 
 		s.OperationsPerformed = sortedInsert(s.OperationsPerformed, Operation{
 			VersionVector: append(make([]uint64, 0), s.VectorClock...),
@@ -339,7 +336,7 @@ func processRequest(server Server, request Message) (Server, []Message) {
 						})
 				}
 			}
-			i = i + 1
+			i++
 		}
 	}
 

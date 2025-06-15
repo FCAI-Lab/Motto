@@ -986,13 +986,11 @@ Module SessionPrelude.
   Context {hsEq : hsEq A (well_formed := well_formed)}.
 
   Fixpoint vectorEq (v1 : list A) (v2 : list A) : bool :=
-    match v1 with
-    | [] => true
-    | h1 :: t1 =>
-      match v2 with
-      | [] => true
-      | h2 :: t2 => if negb (h1 =? h2) then false else vectorEq t1 t2
-      end
+    match v1, v2 with
+    | [], [] => true
+    | [], h2 :: t2 => false
+    | h1 :: t1, [] => false
+    | h1 :: t1, h2 :: t2 => (h1 =? h2) && vectorEq t1 t2
     end.
 
   #[global, program]
@@ -1054,13 +1052,11 @@ Module SessionPrelude.
   Context {hsOrd : hsOrd A (hsEq := hsEq)}.
 
   Fixpoint vectorGt (v1 : list A) (v2 : list A) : bool :=
-    match v1 with
-    | [] => false 
-    | h1 :: t1 =>
-      match v2 with
-      | [] => false 
-      | h2 :: t2 => if h1 =? h2 then vectorGt t1 t2 else h1 >? h2
-      end
+    match v1, v2 with
+    | [], [] => false
+    | [], h2 :: t2 => false
+    | h1 :: t1, [] => true 
+    | h1 :: t1, h2 :: t2 => if h1 =? h2 then vectorGt t1 t2 else h1 >? h2
     end.
 
   Lemma vectorGt_transitive l1 l2 l3 (l1_wf : Forall well_formed l1) (l2_wf : Forall well_formed l2) (l3_wf : Forall well_formed l3) :
