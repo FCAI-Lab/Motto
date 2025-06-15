@@ -53,4 +53,4 @@ compiled with OCaml 5.2.1
 
 ### 2025-06-15
 
-- Fixed `coq_equalSlices` and `coq_lexicographicCompare`.
+- Fixed `compareVersionVector`, `coq_equalSlices`, and `coq_lexicographicCompare`.

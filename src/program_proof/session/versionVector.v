@@ -34,8 +34,8 @@ Proof.
       l ↦[uint64T] #(length xs) ∗
       ⌜length xs = length ys⌝ ∗
       ⌜length xs < 2^64⌝ ∗
-      ⌜∀ (x y: w64), uint.nat i <= length xs -> xs !! (uint.nat i) = Some x -> ys !! (uint.nat i) = Some y -> (uint.Z x) >=? (uint.Z y) = true -> b = true⌝ ∗                   
-      ⌜∀ (i': nat), ∀ (x y: w64), i' < uint.nat i <= length xs -> xs !! i' = Some x -> ys !! i' = Some y -> (uint.Z x) <? (uint.Z y) = true -> b = false⌝ ∗  
+      ⌜∀ (x y: w64), uint.nat i <= length xs -> xs !! (uint.nat i) = Some x -> ys !! (uint.nat i) = Some y -> (uint.Z x) >=? (uint.Z y) = true -> b = true⌝ ∗
+      ⌜∀ (i': nat), ∀ (x y: w64), i' < uint.nat i <= length xs -> xs !! i' = Some x -> ys !! i' = Some y -> (uint.Z x) <? (uint.Z y) = true -> b = false⌝ ∗
       ⌜uint.Z i <= (uint.Z (length xs))⌝ ∗
       ⌜continue = true -> b = true⌝ ∗
       ⌜continue = false -> (exists x y, xs !! (uint.nat i) = Some x /\ ys !! (uint.nat i) = Some y /\ (uint.Z x) <? (uint.Z y) = true /\ b = false) \/ ((uint.nat i) = (length xs) /\ b = true)⌝ 
