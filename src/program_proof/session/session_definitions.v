@@ -45,8 +45,11 @@ Module _Data.
   Definition w : Type :=
     u64.
 
-  #[global] Instance has_value_of_Data : SessionPrelude.has_value_of w :=
+  #[global] Instance has_value_of : SessionPrelude.has_value_of w :=
     SessionPrelude.u64_has_value_of.
+
+  Definition val (w : _Data.w) : val :=
+    has_value_of w.
 
   Definition ty : ty :=
     uint64T.

@@ -782,6 +782,10 @@ Ltac des :=
       let H_OBS := fresh "H_OBS" in destruct (X <? Y)%nat as [ | ] eqn: H_OBS in H; [rewrite Nat.ltb_lt in H_OBS | rewrite Nat.ltb_nlt in H_OBS]
     | [ H : context C[ (?X <=? ?Y)%nat ] |- _ ] =>
       let H_OBS := fresh "H_OBS" in destruct (X <=? Y)%nat as [ | ] eqn: H_OBS in H; [rewrite Nat.leb_le in H_OBS | rewrite Nat.leb_nle in H_OBS]
+    | [ |- context C[ bool_decide ?P ] ] =>
+      let H_OBS := fresh "H_OBS" in destruct (bool_decide P)%nat as [ | ] eqn: H_OBS; [rewrite bool_decide_eq_true in H_OBS | rewrite bool_decide_eq_false in H_OBS]
+    | [ H : context C[ bool_decide ?P ] |- _ ] =>
+      let H_OBS := fresh "H_OBS" in destruct (bool_decide P)%nat as [ | ] eqn: H_OBS in H; [rewrite bool_decide_eq_true in H_OBS | rewrite bool_decide_eq_false in H_OBS]
     | [ H : _ /\ _ |- _ ] => let H' := fresh H in destruct H as [H H']
     | [ H : (_, _)%core = (_, _)%core |- _ ] => rewrite -> Tac.pair_inv in H
     | [ |- (_, _)%core = (_, _)%core ] => rewrite -> Tac.pair_inv
@@ -795,42 +799,32 @@ Module Server_nat.
 
   Import SessionPrelude.
 
-  (*
   Section refine_coq_compareVersionVector.
 
-  Fixpoint coq_compareVersionVector (v1 : list nat) (v2 : list nat) : bool :=
-    match v1 with
-    | [] => true
-    | h1 :: t1 =>
-      match v2 with
-      | [] => true
-      | h2 :: t2 => (h2 <=? h1)%nat && coq_compareVersionVector t1 t2
-      end
-    end.
+  Definition coq_compareVersionVector (v1 : list nat) (v2 : list nat) : bool :=
+    bool_decide (Forall2 (fun h2 => fun h1 => h1 <= h2)%nat v1 v2).
 
   Lemma coq_compareVersionVector_corres
     : ServerSide.coq_compareVersionVector =~= coq_compareVersionVector.
   Proof.
-    intros xs xs' xs_corres; induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; try (do 2 red; reflexivity).
-    des; try word. simpl. eapply IH; trivial.
+    unfold coq_compareVersionVector. intros xs xs' xs_corres; induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; try (do 2 red; reflexivity). do 2 red in IH.
+    specialize (IH ys ys' ys_corres). do 2 red in IH |- *. do 2 red in x_corres, y_corres. des; simpl; try congruence.
+    - inversion H_OBS0; subst; contradiction.
+    - contradiction H_OBS0. econstructor; eauto 2. subst x' y'. rewrite -> CONSTANT_unfold in *. word.
+    - inversion H_OBS0; subst. word.
+    - inversion H_OBS0; subst. word.
   Qed.
 
   End refine_coq_compareVersionVector.
 
   Section refine_coq_lexicographicCompare.
 
-  Fixpoint coq_lexicographicCompare (v1 : list nat) (v2 : list nat) : bool :=
-    match v1 with
-    | [] => false
-    | h1 :: t1 =>
-      match v2 with
-      | [] => false
-      | h2 :: t2 =>
-        if (h1 =? h2)%nat then
-          coq_lexicographicCompare t1 t2
-        else
-          (h2 <? h1)%nat
-      end
+  Fixpoint coq_lexicographicCompare (v1: list nat) (v2: list nat) : bool :=
+    match v1, v2 with
+    | [], [] => false
+    | [], h2 :: t2 => false
+    | h1 :: t1, [] => true
+    | h1 :: t1, h2 :: t2 => if (h1 =? h2)%nat then coq_lexicographicCompare t1 t2 else uint.Z h1 >? uint.Z h2
     end.
 
   Lemma coq_lexicographicCompare_corres
@@ -844,15 +838,8 @@ Module Server_nat.
 
   Section refine_coq_maxTS.
 
-  Fixpoint coq_maxTS (xs : list nat) (ys : list nat) : list nat :=
-    match xs with
-    | [] => []
-    | x' :: xs' =>
-      match ys with
-      | [] => []
-      | y' :: ys' => Nat.max x' y' :: coq_maxTS xs' ys'
-      end
-    end.
+  Definition coq_maxTS (xs : list nat) (ys : list nat) : list nat :=
+    map (fun '(x, y) => Nat.max x y) (zip xs ys).
 
   Lemma coq_maxTS_corres
     : ServerSide.coq_maxTS =~= coq_maxTS.
@@ -865,59 +852,58 @@ Module Server_nat.
 
   Section refine_coq_oneOffVersionVector.
 
-  Definition coq_oneOffVersionVector (v1 : list nat) (v2 : list nat) : bool :=
-    let loop_step (acc : bool * bool) (elem : nat * nat) : bool * bool :=
-      let '(e1, e2) := elem in
-      let '(output, canApply) := acc in
-      if canApply && (e1 + 1 =? e2)%nat then
-        (output, false)
-      else
-        ((e2 <=? e1)%nat && output, canApply)
-    in
-    let (output, canApply) := fold_left loop_step (zip v1 v2) (true, true) in
-    (output && negb canApply).
+  Context `{MonadError M}.
+
+  Definition coq_oneOffVersionVector (v1 : list nat) (v2 : list nat) : M bool :=
+    put_if (length v1 =? length v2)%nat (
+      let loop_step (acc : bool * bool) (elem : nat * nat) : bool * bool :=
+        let '(e1, e2) := elem in
+        let '(output, canApply) := acc in
+        if canApply && (e1 + 1 =? e2)%nat then
+          (output, false)
+        else
+          ((e2 <=? e1)%nat && output, canApply)
+      in
+      let (output, canApply) := fold_left loop_step (zip v1 v2) (true, true) in
+      output && negb canApply
+    ).
 
   Lemma coq_oneOffVersionVector_corres
-    : ServerSide.coq_oneOffVersionVector =~= coq_oneOffVersionVector.
+    : param2func_corres (M := M) ServerSide.coq_oneOffVersionVector coq_oneOffVersionVector.
   Proof.
-    intros v1 v1' v1_corres v2 v2' v2_corres. unfold ServerSide.coq_oneOffVersionVector, coq_oneOffVersionVector.
-    eapply let2_corres.
-    { eapply fold_left_corres.
-      - intros [output canApply] [output' canApply']; simpl in *.
-        intros [output_corres canApply_corres]; simpl in *.
-        intros [e1 e2] [e1' e2']; simpl in *.
-        intros [e1_corres e2_corres]; simpl in *.
-        eapply ite_corres.
-        + eapply andb_corres; trivial.
-          do 2 red in e1_corres, e2_corres |- *. rewrite -> CONSTANT_unfold in *. des; try word.
-        + split; trivial; simpl. do 2 red; reflexivity.
-        + des; simpl; split; trivial; try word. do 2 red; reflexivity.
-      - eapply zip_corres; trivial.
-      - split; simpl; do 2 red; reflexivity.
-    }
-    intros output output' output_corres canApply canApply' canApply_corres.
-    do 2 red in output_corres, canApply_corres |- *; congruence.
+    xintros v1 v2. unfold ServerSide.coq_oneOffVersionVector, coq_oneOffVersionVector. des.
+    - eapply downward_put_if_true. 
+      eapply let2_corres.
+      { eapply fold_left_corres.
+        - intros [output canApply] [output' canApply']; simpl in *.
+          intros [output_corres canApply_corres]; simpl in *.
+          intros [e1 e2] [e1' e2']; simpl in *.
+          intros [e1_corres e2_corres]; simpl in *.
+          eapply ite_corres.
+          + eapply andb_corres; trivial.
+            do 2 red in e1_corres, e2_corres |- *. rewrite -> CONSTANT_unfold in *. des; try word.
+          + split; trivial; simpl. do 2 red; reflexivity.
+          + des; simpl; split; trivial; try word. do 2 red; reflexivity.
+        - eapply zip_corres; trivial.
+        - split; simpl; do 2 red; reflexivity.
+      }
+      intros output output' output_corres canApply canApply' canApply_corres.
+      do 2 red in output_corres, canApply_corres |- *; congruence.
+    - eapply downward_put_if_false.
   Qed.
 
   End refine_coq_oneOffVersionVector.
 
   Section refine_coq_equalSlices.
 
-  Fixpoint coq_equalSlices (s1 : list nat) (s2: list nat) : bool :=
-    match s1 with
-    | [] => true
-    | h1 :: t1 =>
-      match s2 with
-      | [] => true
-      | h2 :: t2 => (h1 =? h2)%nat && coq_equalSlices t1 t2
-      end
-    end.
+  Definition coq_equalSlices (s1 : list nat) (s2: list nat) : bool :=
+    bool_decide (s1 = s2).
 
   Lemma coq_equalSlices_corres
     : ServerSide.coq_equalSlices =~= coq_equalSlices.
   Proof.
-    intros xs xs' xs_corres; induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; try (do 2 red; reflexivity).
-    des; try word; simpl; trivial; eapply IH; trivial.
+    unfold coq_equalSlices. intros xs xs' xs_corres; induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; intros ? ? ys_corres; destruct ys_corres as [ | y y' ys ys' y_corres ys_corres]; simpl in *; try (do 2 red; reflexivity).
+    specialize (IH ys ys' ys_corres). des; try word; simpl; try congruence. contradiction H_OBS. enough (x' = y') by word. congruence.
   Qed.
 
   End refine_coq_equalSlices.
@@ -1111,7 +1097,6 @@ Module Server_nat.
   (* TODO *)
 
   End refine_coq_processRequest.
-  *)
 
 End Server_nat.
 
@@ -1119,18 +1104,10 @@ Module Client_nat.
 
   Import SessionPrelude.
 
-  (*
   Section refine_coq_maxTS.
 
-  Fixpoint coq_maxTS (xs : list nat) (ys : list nat) : list nat :=
-    match xs with
-    | [] => []
-    | x' :: xs' =>
-      match ys with
-      | [] => []
-      | y' :: ys' => Nat.max x' y' :: coq_maxTS xs' ys'
-      end
-    end.
+  Definition coq_maxTS (xs : list nat) (ys : list nat) : list nat :=
+    map (fun '(x, y) => Nat.max x y) (zip xs ys).
 
   Lemma coq_maxTS_corres
     : ServerSide.coq_maxTS =~= coq_maxTS.
@@ -1247,6 +1224,5 @@ Module Client_nat.
   Qed.
 
   End refine_coq_processRequest.
-  *)
 
 End Client_nat.

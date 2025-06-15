@@ -33,7 +33,7 @@ Proof.
   wp_if_destruct.
   { wp_apply wp_ref_to. { repeat econstructor; eauto. } iIntros "%succeeded H_succeeded".
     wp_pures. wp_apply wp_ref_to. { repeat econstructor; eauto. } iIntros "%reply H_reply".
-    wp_pures. wp_load. replace (processClientRequest (#s .(Server.Id), (#s .(Server.NumberOfServers), (t4, (t3, (t2, (t1, (t0, (t, #()))))))))%V (#msg .(Message.MessageType), (#msg .(Message.C2S_Client_Id), (#msg .(Message.C2S_Server_Id), (#msg .(Message.C2S_Client_OperationType), (_Data.has_value_of_Data msg .(Message.C2S_Client_Data), (t7, (#msg .(Message.S2S_Gossip_Sending_ServerId), (#msg .(Message.S2S_Gossip_Receiving_ServerId), (t6, (#msg .(Message.S2S_Gossip_Index), (#msg .(Message.S2S_Acknowledge_Gossip_Sending_ServerId), (#msg .(Message.S2S_Acknowledge_Gossip_Receiving_ServerId), (#msg .(Message.S2S_Acknowledge_Gossip_Index), (#msg .(Message.S2C_Client_OperationType), (_Data.has_value_of_Data msg .(Message.S2C_Client_Data), (t5, (#msg .(Message.S2C_Server_Id), (#msg .(Message.S2C_Client_Number), #()))))))))))))))))))%V) with (processClientRequest (Server.val (s .(Server.Id), s .(Server.NumberOfServers), t4, t3, t2, t1, t0, t)) (Message.val (msg .(Message.MessageType), msg .(Message.C2S_Client_Id), msg .(Message.C2S_Server_Id), msg .(Message.C2S_Client_OperationType), msg .(Message.C2S_Client_Data), t7, msg .(Message.S2S_Gossip_Sending_ServerId), msg .(Message.S2S_Gossip_Receiving_ServerId), t6, msg .(Message.S2S_Gossip_Index), msg .(Message.S2S_Acknowledge_Gossip_Sending_ServerId), msg .(Message.S2S_Acknowledge_Gossip_Receiving_ServerId), msg .(Message.S2S_Acknowledge_Gossip_Index), msg .(Message.S2C_Client_OperationType), msg .(Message.S2C_Client_Data), t5, msg .(Message.S2C_Server_Id), msg .(Message.S2C_Client_Number)))) by f_equal.
+    wp_pures. wp_load. replace (processClientRequest (#s .(Server.Id), (#s .(Server.NumberOfServers), (t4, (t3, (t2, (t1, (t0, (t, #()))))))))%V (#msg .(Message.MessageType), (#msg .(Message.C2S_Client_Id), (#msg .(Message.C2S_Server_Id), (#msg .(Message.C2S_Client_OperationType), (_Data.has_value_of msg .(Message.C2S_Client_Data), (t7, (#msg .(Message.S2S_Gossip_Sending_ServerId), (#msg .(Message.S2S_Gossip_Receiving_ServerId), (t6, (#msg .(Message.S2S_Gossip_Index), (#msg .(Message.S2S_Acknowledge_Gossip_Sending_ServerId), (#msg .(Message.S2S_Acknowledge_Gossip_Receiving_ServerId), (#msg .(Message.S2S_Acknowledge_Gossip_Index), (#msg .(Message.S2C_Client_OperationType), (_Data.has_value_of msg .(Message.S2C_Client_Data), (t5, (#msg .(Message.S2C_Server_Id), (#msg .(Message.S2C_Client_Number), #()))))))))))))))))))%V) with (processClientRequest (Server.val (s .(Server.Id), s .(Server.NumberOfServers), t4, t3, t2, t1, t0, t)) (Message.val (msg .(Message.MessageType), msg .(Message.C2S_Client_Id), msg .(Message.C2S_Server_Id), msg .(Message.C2S_Client_OperationType), msg .(Message.C2S_Client_Data), t7, msg .(Message.S2S_Gossip_Sending_ServerId), msg .(Message.S2S_Gossip_Receiving_ServerId), t6, msg .(Message.S2S_Gossip_Index), msg .(Message.S2S_Acknowledge_Gossip_Sending_ServerId), msg .(Message.S2S_Acknowledge_Gossip_Receiving_ServerId), msg .(Message.S2S_Acknowledge_Gossip_Index), msg .(Message.S2C_Client_OperationType), msg .(Message.S2C_Client_Data), t5, msg .(Message.S2C_Server_Id), msg .(Message.S2C_Client_Number)))) by f_equal.
     wp_apply (wp_processClientRequest (OWN_UnsatisfiedRequests := true) with "[H3 H4 H5 H6 H7 H8 H16 H19 H26]"). { iFrame. Tac.simplNotation; subst. iPureIntro. repeat (split; s!). } iIntros "%b %ns %nm (-> & H_server' & H_message' & H_message & %H_postcondition)". destruct H_postcondition as (H_postcondition & H9_postcondtion). destruct H_postcondition as [H1_postcondition H2_postcondition H3_postcondtion (H4_postcondition & H5_postcondition) (H6_postcondition & H7_postcondtion & H8_postcondtion & H10_postcondtion)]; Tac.simplNotation; subst.
     wp_store. do 2 (wp_pures; lazymatch goal with [ |- envs_entails _ (wp ?s ?E (App ?k ?e)%E ?Q) ] => eapply (tac_wp_store_ty _ _ _ _ _ _ [AppRCtx k]%list); [tac_val_ty | tc_solve | let l := reply in iAssumptionCore | reflexivity | simpl] end).
     wp_pures. wp_load. wp_if_destruct.
@@ -42,14 +42,14 @@ Proof.
       unfold coq_processRequest; rewrite Heqb; replace (uint.nat (W64 0)) with 0%nat by reflexivity. destruct (coq_processClientRequest s msg) as [[succeeded_v s_v] reply_v] eqn: H_OBS; simpl in *. replace (length s .(Server.GossipAcknowledgements)) with (uint.nat s.(Server.NumberOfServers)) by word.
       subst succeeded_v; simpl in *. iFrame. simpl. iSplit; try done. iPureIntro. repeat (split; word || done || tauto || congruence || trivial).
     - wp_load. wp_pures. iDestruct "H_server'" as "(%H1' & %H2' & H3 & H4 & H5 & H6 & H7 & H8 & %H9' & %H10')". rename H17 into H17''. iDestruct "H_message" as "(%H11' & %H12' & %H13' & %H14' & %H15' & H16 & %H17' & %H18' & H19 & %H20' & %H21' & %H22' & %H23' & %H24' & %H25' & H26 & %H27 & %H28' & %H29' & %H30')". Tac.simplNotation; subst.
-      change _Data.has_value_of_Data with (fun u : u64 => #u). simpl. replace (#msg .(Message.MessageType), (#msg .(Message.C2S_Client_Id), (#msg .(Message.C2S_Server_Id), (#msg .(Message.C2S_Client_OperationType), (#(msg .(Message.C2S_Client_Data) : u64), (t7, (#msg .(Message.S2S_Gossip_Sending_ServerId), (#msg .(Message.S2S_Gossip_Receiving_ServerId), (t6, (#msg .(Message.S2S_Gossip_Index), (#msg .(Message.S2S_Acknowledge_Gossip_Sending_ServerId), (#msg .(Message.S2S_Acknowledge_Gossip_Receiving_ServerId), (#msg .(Message.S2S_Acknowledge_Gossip_Index), (#msg .(Message.S2C_Client_OperationType), (#(msg .(Message.S2C_Client_Data) : u64), (t5, (#msg .(Message.S2C_Server_Id), (#msg .(Message.S2C_Client_Number), #()))))))))))))))))))%V with (Message.IntoVal .(to_val) (msg .(Message.MessageType), msg .(Message.C2S_Client_Id), msg .(Message.C2S_Server_Id), msg .(Message.C2S_Client_OperationType), msg .(Message.C2S_Client_Data), t7, msg .(Message.S2S_Gossip_Sending_ServerId), msg .(Message.S2S_Gossip_Receiving_ServerId), t6, msg .(Message.S2S_Gossip_Index), msg .(Message.S2S_Acknowledge_Gossip_Sending_ServerId), msg .(Message.S2S_Acknowledge_Gossip_Receiving_ServerId), msg .(Message.S2S_Acknowledge_Gossip_Index), msg .(Message.S2C_Client_OperationType), msg .(Message.S2C_Client_Data), t5, msg .(Message.S2C_Server_Id), msg .(Message.S2C_Client_Number))) by reflexivity.
+      change _Data.has_value_of with (fun u : u64 => #u). simpl. replace (#msg .(Message.MessageType), (#msg .(Message.C2S_Client_Id), (#msg .(Message.C2S_Server_Id), (#msg .(Message.C2S_Client_OperationType), (#(msg .(Message.C2S_Client_Data) : u64), (t7, (#msg .(Message.S2S_Gossip_Sending_ServerId), (#msg .(Message.S2S_Gossip_Receiving_ServerId), (t6, (#msg .(Message.S2S_Gossip_Index), (#msg .(Message.S2S_Acknowledge_Gossip_Sending_ServerId), (#msg .(Message.S2S_Acknowledge_Gossip_Receiving_ServerId), (#msg .(Message.S2S_Acknowledge_Gossip_Index), (#msg .(Message.S2C_Client_OperationType), (#(msg .(Message.S2C_Client_Data) : u64), (t5, (#msg .(Message.S2C_Server_Id), (#msg .(Message.S2C_Client_Number), #()))))))))))))))))))%V with (Message.IntoVal .(to_val) (msg .(Message.MessageType), msg .(Message.C2S_Client_Id), msg .(Message.C2S_Server_Id), msg .(Message.C2S_Client_OperationType), msg .(Message.C2S_Client_Data), t7, msg .(Message.S2S_Gossip_Sending_ServerId), msg .(Message.S2S_Gossip_Receiving_ServerId), t6, msg .(Message.S2S_Gossip_Index), msg .(Message.S2S_Acknowledge_Gossip_Sending_ServerId), msg .(Message.S2S_Acknowledge_Gossip_Receiving_ServerId), msg .(Message.S2S_Acknowledge_Gossip_Index), msg .(Message.S2C_Client_OperationType), msg .(Message.S2C_Client_Data), t5, msg .(Message.S2C_Server_Id), msg .(Message.S2C_Client_Number))) by reflexivity.
       iDestruct "H3" as "(%ops1 & H3 & H_ops1)". wp_apply (wp_SliceAppend with "[$H3]"). iIntros "%s2 H_s2". wp_apply (wp_storeField_struct with "[H_server]"); auto. iIntros "H_server".
-      wp_pures. wp_load. wp_load. wp_pures. iModIntro. red in ns, nm. simpl in ns, nm. change _Data.has_value_of_Data with (fun u : u64 => #u). simpl. replace (Φ (#ns.1.1.1.1.1.1.1, (#ns.1.1.1.1.1.1.2, (s2, (ns.1.1.1.1.2, (ns.1.1.1.2, (ns.1.1.2, (ns.1.2, (ns.2, #()))))))), s1)%V) with (Φ (Server.val (ns.1.1.1.1.1.1.1, ns.1.1.1.1.1.1.2, s2, ns.1.1.1.1.2, ns.1.1.1.2, ns.1.1.2, ns.1.2, ns.2)%core, s1)%V) by reflexivity. iApply "HΦ".
+      wp_pures. wp_load. wp_load. wp_pures. iModIntro. red in ns, nm. simpl in ns, nm. change _Data.has_value_of with (fun u : u64 => #u). simpl. replace (Φ (#ns.1.1.1.1.1.1.1, (#ns.1.1.1.1.1.1.2, (s2, (ns.1.1.1.1.2, (ns.1.1.1.2, (ns.1.1.2, (ns.1.2, (ns.2, #()))))))), s1)%V) with (Φ (Server.val (ns.1.1.1.1.1.1.1, ns.1.1.1.1.1.1.2, s2, ns.1.1.1.1.2, ns.1.1.1.2, ns.1.1.2, ns.1.2, ns.2)%core, s1)%V) by reflexivity. iApply "HΦ".
       unfold coq_processRequest; rewrite Heqb; replace (uint.nat (W64 0)) with 0%nat by reflexivity. do 7 destruct ns as [ns ?]; simpl in *. do 17 destruct nm as [nm ?]; simpl in *. subst.
       destruct (coq_processClientRequest s msg) as [[b s'] msg'] eqn: H_OBS; simpl in *. rewrite Heqb0; simpl. repeat match goal with [ H : ?x = _ /\ _ |- _ ] => let x_EQ := fresh in destruct H as [x_EQ H]; try subst x end. subst b.
       set (n := length msg.(Message.C2S_Client_VersionVector)) in *. Tac.des. iFrame; Tac.simplNotation; simpl. iPureIntro; repeat (split; tauto || congruence || done || trivial); simpl; try word. exists (length msg .(Message.S2C_Client_VersionVector)). repeat (split; s!). symmetry; tauto.
   }
-  change _Data.has_value_of_Data with (fun u : u64 => #u). simpl. wp_if_destruct.
+  change _Data.has_value_of with (fun u : u64 => #u). simpl. wp_if_destruct.
   { wp_load. replace (receiveGossip (#s .(Server.Id), (#s .(Server.NumberOfServers), (t4, (t3, (t2, (t1, (t0, (t, #()))))))))%V (#msg .(Message.MessageType), (#msg .(Message.C2S_Client_Id), (#msg .(Message.C2S_Server_Id), (#msg .(Message.C2S_Client_OperationType), (#(msg .(Message.C2S_Client_Data) : u64), (t7, (#msg .(Message.S2S_Gossip_Sending_ServerId), (#msg .(Message.S2S_Gossip_Receiving_ServerId), (t6, (#msg .(Message.S2S_Gossip_Index), (#msg .(Message.S2S_Acknowledge_Gossip_Sending_ServerId), (#msg .(Message.S2S_Acknowledge_Gossip_Receiving_ServerId), (#msg .(Message.S2S_Acknowledge_Gossip_Index), (#msg .(Message.S2C_Client_OperationType), (#(msg .(Message.S2C_Client_Data) : u64), (t5, (#msg .(Message.S2C_Server_Id), (#msg .(Message.S2C_Client_Number), #()))))))))))))))))))%V) with (receiveGossip (Server.val (s .(Server.Id), s .(Server.NumberOfServers), t4, t3, t2, t1, t0, t)) (Message.val( msg .(Message.MessageType), msg .(Message.C2S_Client_Id), msg .(Message.C2S_Server_Id), msg .(Message.C2S_Client_OperationType), msg .(Message.C2S_Client_Data), t7, msg .(Message.S2S_Gossip_Sending_ServerId), msg .(Message.S2S_Gossip_Receiving_ServerId), t6, msg .(Message.S2S_Gossip_Index), msg .(Message.S2S_Acknowledge_Gossip_Sending_ServerId), msg .(Message.S2S_Acknowledge_Gossip_Receiving_ServerId), msg .(Message.S2S_Acknowledge_Gossip_Index), msg .(Message.S2C_Client_OperationType), msg .(Message.S2C_Client_Data), t5, msg .(Message.S2C_Server_Id), msg .(Message.S2C_Client_Number)))) by f_equal.
     wp_apply (wp_receiveGossip with "[H3 H4 H6 H7 H8 H5 H16 H19 H26]"). { iFrame. Tac.simplNotation; subst. iPureIntro. repeat (split; s!). } iIntros "%r (Hr & H_message & %H_pure)". destruct H_pure as [H1_sorted H2_sorted ?]; Tac.des.
     (wp_pures; lazymatch goal with [ |- envs_entails _ (wp ?s ?E (App ?k ?e)%E ?Q) ] => eapply (tac_wp_store_ty _ _ _ _ _ _ [AppRCtx k]%list); [tac_val_ty | tc_solve | let l := server in iAssumptionCore | reflexivity | simpl] end). 
@@ -246,7 +246,7 @@ Proof.
           { replace (length s'.(Server.VectorClock)) with n by word. iFrame; Tac.simplNotation; simpl. iPureIntro; repeat (split; eauto); word || congruence || tauto || trivial. }
           iIntros "%ns [H_ns (%H1' & %H2' & H3 & H4 & H5 & H6 & H7 & H8 & %H9' & %H10')]"; Tac.simplNotation; simpl. wp_apply wp_slice_len. wp_if_destruct.
           * wp_load. wp_apply wp_slice_len. wp_load. wp_pures. change (#t1.(Slice.sz)) with (to_val t1.(Slice.sz)); eauto. wp_apply (wp_SliceSet with "[$H8]"). { iPureIntro. eapply lookup_lt_is_Some_2. Tac.des. word. } iIntros "H8".
-            wp_load. wp_load. wp_apply wp_slice_len. wp_load. unfold _Data.has_value_of_Data. unfold SessionPrelude.u64_has_value_of. change (#(W64 1), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (#s' .(Server.Id), (#(W64 index), (ns, (#t1 .(Slice.sz), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V with (Message.IntoVal.(to_val) (W64 1, W64 0, W64 0, W64 0, W64 0, Slice.nil, s'.(Server.Id), W64 index, ns, t1.(Slice.sz), W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)).
+            wp_load. wp_load. wp_apply wp_slice_len. wp_load. unfold _Data.has_value_of. unfold SessionPrelude.u64_has_value_of. change (#(W64 1), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (#s' .(Server.Id), (#(W64 index), (ns, (#t1 .(Slice.sz), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V with (Message.IntoVal.(to_val) (W64 1, W64 0, W64 0, W64 0, W64 0, Slice.nil, s'.(Server.Id), W64 index, ns, t1.(Slice.sz), W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)).
             iDestruct "H_out_going_requests" as "(%ops1 & H_ops1 & H_out_going_requests)". wp_apply (wp_SliceAppend with "[$H_ops1]"). iIntros "%ops1' H_ops1'". wp_store. wp_load. wp_store. iDestruct "H_ns" as "(%ops2 & H_ns & H_ops2)". iPoseProof (own_slice_sz with "H_ns") as "%LEN_1". iPoseProof (big_sepL2_length with "H_ops2") as "%LEN_2".
             iModIntro. iApply "HΦ". iExists (Server.mk s.(Server.Id) s.(Server.NumberOfServers) s.(Server.UnsatisfiedRequests) s.(Server.VectorClock) s.(Server.OperationsPerformed) s.(Server.MyOperations) s.(Server.PendingOperations) (<[uint.nat (W64 index):=t1 .(Slice.sz)]> s' .(Server.GossipAcknowledgements))).
             iExists GossipAcknowledgements'. iExists (index + 1)%nat. iExists (msgs ++ [Message.mk (W64 1) (W64 0) (W64 0) (W64 0) (W64 0) [] s'.(Server.Id) (W64 index) (coq_getGossipOperations s' (W64 index)) t1.(Slice.sz) (W64 0) (W64 0) (W64 0) (W64 0) (W64 0) [] (W64 0) (W64 0)]). iExists ops1'.
@@ -398,7 +398,7 @@ Proof.
     wp_pures. wp_apply (wp_storeField_struct with "[H_reply]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_reply".
     wp_pures. wp_load.
     apply bool_decide_eq_true in Heqb.
-    assert (c .(Client.SessionSemantic) = W64 0) as EQ by congruence. rewrite EQ. simpl setField_f. change (_Data.has_value_of_Data c .(Client.Id)) with (#c.(Client.Id)).
+    assert (c .(Client.SessionSemantic) = W64 0) as EQ by congruence. rewrite EQ. simpl setField_f. change (_Data.has_value_of c .(Client.Id)) with (#c.(Client.Id)).
     replace (Φ (#(W64 0), (#c.(Client.Id), (#serverId, (#(W64 0), (#(W64 0), (s1, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V) with (Φ (Message.val (W64 0, c.(Client.Id), serverId, W64 0, W64 0, s1, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)%core)) by reflexivity.
     iModIntro. simpl. iApply "HΦ".
     iSplitL "H3 H4".
@@ -434,7 +434,7 @@ Proof.
     wp_pures. wp_apply (wp_storeField_struct with "[H_reply]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_reply".
     wp_pures. wp_load.
     apply bool_decide_eq_true in Heqb0.
-    assert (c .(Client.SessionSemantic) = W64 1) as EQ by congruence. simpl setField_f. change (_Data.has_value_of_Data c .(Client.Id)) with (#c.(Client.Id)).
+    assert (c .(Client.SessionSemantic) = W64 1) as EQ by congruence. simpl setField_f. change (_Data.has_value_of c .(Client.Id)) with (#c.(Client.Id)).
     replace (Φ (#(W64 0), (#c.(Client.Id), (#serverId, (#(W64 0), (#(W64 0), (s1, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V) with (Φ (Message.val (W64 0, c.(Client.Id), serverId, W64 0, W64 0, s1, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)%core)) by reflexivity.
     iModIntro. simpl. iApply "HΦ".
     iSplitL "H3 H4".
@@ -470,7 +470,7 @@ Proof.
     wp_pures. wp_apply (wp_storeField_struct with "[H_reply]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_reply".
     wp_pures. wp_load.
     apply bool_decide_eq_true in Heqb1.
-    assert (c .(Client.SessionSemantic) = W64 2) as EQ by congruence. simpl setField_f. change (_Data.has_value_of_Data c .(Client.Id)) with (#c.(Client.Id)).
+    assert (c .(Client.SessionSemantic) = W64 2) as EQ by congruence. simpl setField_f. change (_Data.has_value_of c .(Client.Id)) with (#c.(Client.Id)).
     replace (Φ (#(W64 0), (#c.(Client.Id), (#serverId, (#(W64 0), (#(W64 0), (s1, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V) with (Φ (Message.val (W64 0, c.(Client.Id), serverId, W64 0, W64 0, s1, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)%core)) by reflexivity.
     iModIntro. simpl. iApply "HΦ".
     iSplitL "H3 H4".
@@ -506,7 +506,7 @@ Proof.
     wp_pures. wp_apply (wp_storeField_struct with "[H_reply]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_reply".
     wp_pures. wp_load.
     apply bool_decide_eq_true in Heqb2.
-    assert (c .(Client.SessionSemantic) = W64 3) as EQ by congruence. simpl setField_f. change (_Data.has_value_of_Data c .(Client.Id)) with (#c.(Client.Id)).
+    assert (c .(Client.SessionSemantic) = W64 3) as EQ by congruence. simpl setField_f. change (_Data.has_value_of c .(Client.Id)) with (#c.(Client.Id)).
     replace (Φ (#(W64 0), (#c.(Client.Id), (#serverId, (#(W64 0), (#(W64 0), (s1, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V) with (Φ (Message.val (W64 0, c.(Client.Id), serverId, W64 0, W64 0, s1, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)%core)) by reflexivity.
     iModIntro. simpl. iApply "HΦ".
     iSplitL "H3 H5".
@@ -542,7 +542,7 @@ Proof.
     wp_pures. wp_apply (wp_storeField_struct with "[H_reply]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_reply".
     wp_pures. wp_load.
     apply bool_decide_eq_true in Heqb3.
-    assert (c .(Client.SessionSemantic) = W64 4) as EQ by congruence. simpl setField_f. change (_Data.has_value_of_Data c .(Client.Id)) with (#c.(Client.Id)).
+    assert (c .(Client.SessionSemantic) = W64 4) as EQ by congruence. simpl setField_f. change (_Data.has_value_of c .(Client.Id)) with (#c.(Client.Id)).
     replace (Φ (#(W64 0), (#c.(Client.Id), (#serverId, (#(W64 0), (#(W64 0), (s1, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V) with (Φ (Message.val (W64 0, c.(Client.Id), serverId, W64 0, W64 0, s1, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)%core)) by reflexivity.
     iModIntro. simpl. iApply "HΦ".
     iSplitL "H3 H4".
@@ -577,7 +577,7 @@ Proof.
     wp_pures. wp_apply (wp_storeField_struct with "[H_reply]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_reply".
     wp_pures. wp_load.
     apply bool_decide_eq_true in Heqb4.
-    assert (c .(Client.SessionSemantic) = W64 5) as EQ by congruence. simpl setField_f. change (_Data.has_value_of_Data c .(Client.Id)) with (#c.(Client.Id)).
+    assert (c .(Client.SessionSemantic) = W64 5) as EQ by congruence. simpl setField_f. change (_Data.has_value_of c .(Client.Id)) with (#c.(Client.Id)).
     replace (Φ (#(W64 0), (#c.(Client.Id), (#serverId, (#(W64 0), (#(W64 0), (s1, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V) with (Φ (Message.val (W64 0, c.(Client.Id), serverId, W64 0, W64 0, s1, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)%core)) by reflexivity.
     iModIntro. simpl. iApply "HΦ".
     iSplitL "H3 H5".
@@ -613,18 +613,19 @@ Proof.
   }
 Qed.
 
-Lemma wp_write (P_c: Client.t -> Prop) (c: Client.t) (serverId: u64) (value: u64) (n: nat) cv :
+Lemma wp_write (P_c: Client.t -> Prop) (c: Client.t) (serverId: u64) (value: _Data.w) (n: nat) cv :
   {{{
       is_client cv c n ∗
       ⌜CLIENT_INVARIANT P_c c /\ u64_le_CONSTANT serverId⌝
   }}}
-    SessionClient.write (Client.val cv) (#serverId) (#value)
+    SessionClient.write (Client.val cv) (#serverId) (_Data.val value)
   {{{
       msgv, RET (Message.val msgv);
       is_client cv c n ∗
       is_message msgv (coq_write c serverId value) n n 0%nat
   }}}.
 Proof.
+  red in value. unfold _Data.val, _Data.has_value_of, SessionPrelude.has_value_of, SessionPrelude.u64_has_value_of.
   unfold Client.val, Message.val. TypeVector.des cv. iIntros "%Φ (H_is_client & (%H_invariant & %H_serverId_le)) HΦ".
   iDestruct "H_is_client" as "(%H1 & %H2 & H3 & H4 & %H5 & %H6)". destruct H_invariant as [? ?].
   Tac.simplNotation; simpl; subst; rewrite/ write.
@@ -642,7 +643,7 @@ Proof.
     wp_pures. wp_apply (wp_storeField_struct with "[H_reply]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_reply".
     wp_pures. wp_load.
     apply bool_decide_eq_true in Heqb.
-    assert (c .(Client.SessionSemantic) = W64 0) as EQ by congruence. simpl setField_f. change (_Data.has_value_of_Data c .(Client.Id)) with (#c.(Client.Id)).
+    assert (c .(Client.SessionSemantic) = W64 0) as EQ by congruence. simpl setField_f. change (_Data.has_value_of c .(Client.Id)) with (#c.(Client.Id)).
     replace (Φ (#(W64 0), (#c.(Client.Id), (#serverId, (#(W64 1), (#value, (s1, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V) with (Φ (Message.val (W64 0, c.(Client.Id), serverId, W64 1, value, s1, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)%core)) by reflexivity.
     iModIntro. simpl. iApply "HΦ".
     iSplitL "H3 H4".
@@ -678,7 +679,7 @@ Proof.
     wp_pures. wp_apply (wp_storeField_struct with "[H_reply]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_reply".
     wp_pures. wp_load.
     apply bool_decide_eq_true in Heqb0.
-    assert (c .(Client.SessionSemantic) = W64 3) as EQ by congruence. simpl setField_f. change (_Data.has_value_of_Data c .(Client.Id)) with (#c.(Client.Id)).
+    assert (c .(Client.SessionSemantic) = W64 3) as EQ by congruence. simpl setField_f. change (_Data.has_value_of c .(Client.Id)) with (#c.(Client.Id)).
     replace (Φ (#(W64 0), (#c.(Client.Id), (#serverId, (#(W64 1), (#value, (s1, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V) with (Φ (Message.val (W64 0, c.(Client.Id), serverId, W64 1, value, s1, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)%core)) by reflexivity.
     iModIntro. simpl. iApply "HΦ".
     iSplitL "H3 H4".
@@ -714,7 +715,7 @@ Proof.
     wp_pures. wp_apply (wp_storeField_struct with "[H_reply]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_reply".
     wp_pures. wp_load.
     apply bool_decide_eq_true in Heqb1.
-    assert (c .(Client.SessionSemantic) = W64 4) as EQ by congruence. simpl setField_f. change (_Data.has_value_of_Data c .(Client.Id)) with (#c.(Client.Id)).
+    assert (c .(Client.SessionSemantic) = W64 4) as EQ by congruence. simpl setField_f. change (_Data.has_value_of c .(Client.Id)) with (#c.(Client.Id)).
     replace (Φ (#(W64 0), (#c.(Client.Id), (#serverId, (#(W64 1), (#value, (s1, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V) with (Φ (Message.val (W64 0, c.(Client.Id), serverId, W64 1, value, s1, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)%core)) by reflexivity.
     iModIntro. simpl. iApply "HΦ".
     iSplitL "H3 H4".
@@ -750,7 +751,7 @@ Proof.
     wp_pures. wp_apply (wp_storeField_struct with "[H_reply]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_reply".
     wp_pures. wp_load.
     apply bool_decide_eq_true in Heqb2.
-    assert (c .(Client.SessionSemantic) = W64 1) as EQ by congruence. simpl setField_f. change (_Data.has_value_of_Data c .(Client.Id)) with (#c.(Client.Id)).
+    assert (c .(Client.SessionSemantic) = W64 1) as EQ by congruence. simpl setField_f. change (_Data.has_value_of c .(Client.Id)) with (#c.(Client.Id)).
     replace (Φ (#(W64 0), (#c.(Client.Id), (#serverId, (#(W64 1), (#value, (s1, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V) with (Φ (Message.val (W64 0, c.(Client.Id), serverId, W64 1, value, s1, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)%core)) by reflexivity.
     iModIntro. simpl. iApply "HΦ".
     iSplitL "H3 H5".
@@ -786,7 +787,7 @@ Proof.
     wp_pures. wp_apply (wp_storeField_struct with "[H_reply]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_reply".
     wp_pures. wp_load.
     apply bool_decide_eq_true in Heqb3.
-    assert (c .(Client.SessionSemantic) = W64 2) as EQ by congruence. simpl setField_f. change (_Data.has_value_of_Data c .(Client.Id)) with (#c.(Client.Id)).
+    assert (c .(Client.SessionSemantic) = W64 2) as EQ by congruence. simpl setField_f. change (_Data.has_value_of c .(Client.Id)) with (#c.(Client.Id)).
     replace (Φ (#(W64 0), (#c.(Client.Id), (#serverId, (#(W64 1), (#value, (s1, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V) with (Φ (Message.val (W64 0, c.(Client.Id), serverId, W64 1, value, s1, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)%core)) by reflexivity.
     iModIntro. simpl. iApply "HΦ".
     iSplitL "H3 H4".
@@ -821,7 +822,7 @@ Proof.
     wp_pures. wp_apply (wp_storeField_struct with "[H_reply]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_reply".
     wp_pures. wp_load.
     apply bool_decide_eq_true in Heqb4.
-    assert (c .(Client.SessionSemantic) = W64 5) as EQ by congruence. simpl setField_f. change (_Data.has_value_of_Data c .(Client.Id)) with (#c.(Client.Id)).
+    assert (c .(Client.SessionSemantic) = W64 5) as EQ by congruence. simpl setField_f. change (_Data.has_value_of c .(Client.Id)) with (#c.(Client.Id)).
     replace (Φ (#(W64 0), (#c.(Client.Id), (#serverId, (#(W64 1), (#value, (s1, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V) with (Φ (Message.val (W64 0, c.(Client.Id), serverId, W64 1, value, s1, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)%core)) by reflexivity.
     iModIntro. simpl. iApply "HΦ".
     iSplitL "H3 H5".
@@ -857,13 +858,13 @@ Proof.
   }
 Qed.
 
-Lemma wp_processRequest (c: Client.t) (requestType: u64) (serverId: u64) (value: u64) (ackMessage: Message.t) (n: nat) cv msgv c_Id c_NumberOfServers c_SessionSemantic :
+Lemma wp_processRequest (c: Client.t) (requestType: u64) (serverId: u64) (value: _Data.w) (ackMessage: Message.t) (n: nat) cv msgv c_Id c_NumberOfServers c_SessionSemantic :
   {{{
       is_client cv c n ∗
       is_message msgv ackMessage n n n ∗
       ⌜CLIENT_INVARIANT (fun _c => _c.(Client.Id) = c_Id /\ _c.(Client.NumberOfServers) = c_NumberOfServers /\ _c.(Client.SessionSemantic) = c_SessionSemantic) c /\ u64_le_CONSTANT requestType /\ u64_le_CONSTANT serverId⌝
   }}}
-    SessionClient.processRequest (Client.val cv) (#requestType) (#serverId) (#value) (Message.val msgv)
+    SessionClient.processRequest (Client.val cv) (#requestType) (#serverId) (_Data.val value) (Message.val msgv)
   {{{
       cv' msgv', RET (Client.val cv', Message.val msgv');
       is_client cv' (coq_processRequest c requestType serverId value ackMessage).1 n ∗
@@ -872,6 +873,7 @@ Lemma wp_processRequest (c: Client.t) (requestType: u64) (serverId: u64) (value:
       ⌜CLIENT_INVARIANT (fun _c => _c.(Client.Id) = c_Id /\ _c.(Client.NumberOfServers) = c_NumberOfServers /\ _c.(Client.SessionSemantic) = c_SessionSemantic) (coq_processRequest c requestType serverId value ackMessage).1⌝
   }}}.
 Proof.
+  red in value. unfold _Data.val, _Data.has_value_of, SessionPrelude.has_value_of, SessionPrelude.u64_has_value_of.
   set (fun _c => _c.(Client.Id) = c_Id /\ _c.(Client.NumberOfServers) = c_NumberOfServers /\ _c.(Client.SessionSemantic) = c_SessionSemantic) as P_c. TypeVector.des cv. TypeVector.des msgv. iIntros "%Φ (H_is_client & H_is_message & %H_invariant & %H_requestType_le & %H_serverId_le) HΦ".
   iDestruct "H_is_client" as "(%H1 & %H2 & H3 & H5 & %H4 & %H6)". iDestruct "H_is_message" as "(%H11 & %H12 & %H13 & %H14 & %H15 & H16 & %H17 & %H18 & H19 & %H20 & %H21 & %H22 & %H23 & %H24 & %H25 & H26 & %H27 & %H28 & %H29 & %H30)".
   Tac.simplNotation; simpl; subst; rewrite /SessionClient.processRequest.
@@ -885,7 +887,7 @@ Proof.
     wp_pures; eapply (tac_wp_store_ty _ _ _ _ _ _ []%list); [tac_val_ty | tc_solve | let l := msg in iAssumptionCore | reflexivity | simpl].
     wp_pures. wp_load.
     wp_pures. wp_load.
-    change _Data.has_value_of_Data with (fun u : u64 => #u). simpl.
+    change _Data.has_value_of with (fun u : u64 => #u). simpl.
     replace (#c.(Client.Id), (#c.(Client.NumberOfServers), (t0, (t, (#c .(Client.SessionSemantic), #())))))%V with (Client.val (c.(Client.Id), c.(Client.NumberOfServers), t0, t, c.(Client.SessionSemantic))) by reflexivity.
     wp_pures. iModIntro. iApply "HΦ".
     replace (uint.Z (W64 0) =? 0)%Z with true by reflexivity. rewrite orb_true_l.
@@ -897,7 +899,7 @@ Proof.
     wp_pures; eapply (tac_wp_store_ty _ _ _ _ _ _ []%list); [tac_val_ty | tc_solve | let l := msg in iAssumptionCore | reflexivity | simpl].
     wp_pures. wp_load.
     wp_pures. wp_load.
-    change _Data.has_value_of_Data with (fun u : u64 => #u). simpl.
+    change _Data.has_value_of with (fun u : u64 => #u). simpl.
     replace (#c.(Client.Id), (#c.(Client.NumberOfServers), (t0, (t, (#c .(Client.SessionSemantic), #())))))%V with (Client.val (c.(Client.Id), c.(Client.NumberOfServers), t0, t, c.(Client.SessionSemantic))) by reflexivity.
     wp_pures. iModIntro. iApply "HΦ".
     replace (uint.Z (W64 1) =? 1)%Z with true by reflexivity. rewrite orb_true_r.
@@ -911,7 +913,7 @@ Proof.
       wp_pures. wp_apply (wp_storeField_struct with "[H_nc]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_nc".
       wp_pures. rewrite Heqb1. wp_load.
       wp_pures. wp_load.
-      change _Data.has_value_of_Data with (fun u : u64 => #u). simpl. wp_pures.
+      change _Data.has_value_of with (fun u : u64 => #u). simpl. wp_pures.
       replace (#c.(Client.Id), (#c.(Client.NumberOfServers), (t0, (s1, (#c .(Client.SessionSemantic), #())))))%V with (Client.val (c.(Client.Id), c.(Client.NumberOfServers), t0, s1, c.(Client.SessionSemantic))) by reflexivity.
       replace ((uint.Z (W64 2) =? 0) || (uint.Z (W64 2) =? 1)) with false by reflexivity.
       replace (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V with (Message.val (W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)) by reflexivity.
@@ -952,7 +954,7 @@ Proof.
       wp_pures. wp_apply (wp_storeField_struct with "[H_nc]"). { repeat econstructor; eauto. } { iFrame. } iIntros "H_nc".
       wp_pures. rewrite Heqb2. wp_load.
       wp_pures. wp_load.
-      change _Data.has_value_of_Data with (fun u : u64 => #u). simpl. wp_pures.
+      change _Data.has_value_of with (fun u : u64 => #u). simpl. wp_pures.
       replace (#c.(Client.Id), (#c.(Client.NumberOfServers), (s1, (t, (#c .(Client.SessionSemantic), #())))))%V with (Client.val (c.(Client.Id), c.(Client.NumberOfServers), s1, t, c.(Client.SessionSemantic))) by reflexivity.
       replace ((uint.Z (W64 2) =? 0) || (uint.Z (W64 2) =? 1)) with false by reflexivity.
       replace (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V with (Message.val (W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)) by reflexivity.
@@ -990,7 +992,7 @@ Proof.
     { wp_pures. wp_load.
       wp_pures. wp_load.
       wp_pures.
-      change _Data.has_value_of_Data with (fun u : u64 => #u). simpl. wp_pures.
+      change _Data.has_value_of with (fun u : u64 => #u). simpl. wp_pures.
       replace (#c.(Client.Id), (#c.(Client.NumberOfServers), (t0, (t, (#c .(Client.SessionSemantic), #())))))%V with (Client.val (c.(Client.Id), c.(Client.NumberOfServers), t0, t, c.(Client.SessionSemantic))) by reflexivity.
       replace (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V with (Message.val (W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)) by reflexivity.
       iModIntro. iApply "HΦ".
@@ -1026,7 +1028,7 @@ Proof.
   { wp_pures. wp_load.
     wp_pures. wp_load.
     wp_pures.
-    change _Data.has_value_of_Data with (fun u : u64 => #u). simpl. wp_pures.
+    change _Data.has_value_of with (fun u : u64 => #u). simpl. wp_pures.
     replace (#c.(Client.Id), (#c.(Client.NumberOfServers), (t0, (t, (#c .(Client.SessionSemantic), #())))))%V with (Client.val (c.(Client.Id), c.(Client.NumberOfServers), t0, t, c.(Client.SessionSemantic))) by reflexivity.
     replace (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T (slice.T uint64T * (uint64T * unitT)%ht)), (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val uint64T, (zero_val (slice.T uint64T), (zero_val uint64T, (zero_val uint64T, #()))))))))))))))))))%V with (Message.val (W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0, Slice.nil, W64 0, W64 0, W64 0, W64 0, W64 0, W64 0, Slice.nil, W64 0, W64 0)) by reflexivity.
     iModIntro. iApply "HΦ".

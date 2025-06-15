@@ -213,7 +213,7 @@ Import ServerSide SessionServer.
 
 Context `{hG: !heapGS Σ}.
 
-Lemma wp_receiveGossip {s} {n: nat} sv msgv msg len_c2s len_s2c len_mo len_ga Id NumberOfServers UnsatisfiedRequests MyOperations GossipAcknowledgements :
+Lemma wp_receiveGossip {s: Server.t} {n: nat} sv msgv msg len_c2s len_s2c len_mo len_ga Id NumberOfServers UnsatisfiedRequests MyOperations GossipAcknowledgements :
   {{{
       is_server sv s n n n len_mo n len_ga ∗ 
       is_message msgv msg n len_c2s len_s2c ∗
@@ -500,13 +500,13 @@ Proof.
     }
     { iExists []. iExists focus. iExists (W64 0). iExists (W64 0). iExists output_REP. iExists []. iFrame; simpl. repeat (iSplitL ""; try done); iPureIntro; [word | econstructor 1]. }
     clear output_REP. iIntros "(%prevs & %nexts & %index & %index' & %output_REP & %output & %FOCUS & %ACCUM & H_i & H_j & H_s & H_seen_ref & H_output_ref & H_output_REP & H_seen_REP & H3 & H4 & H6 & H7 & H8 & H9 & H16 & H20 & H27 & %H_pure)". destruct H_pure as (H_continue & H_index & H_bound & SUBSEQ). specialize (H_continue eq_refl). subst nexts. rewrite -> app_nil_r in *. subst prevs.
-    wp_load. wp_apply (wp_storeField_struct with "[$H_s]"). { repeat econstructor; eauto. } iIntros "H_s". wp_load. iModIntro. unfold _Data.has_value_of_Data. simpl. change (#server2 .(Server.Id), (#server2 .(Server.NumberOfServers), (UnsatisfiedRequests_REP, (VectorClock_REP, (OperationsPerformed_REP, (MyOperations_REP, (output_REP, (GossipAcknowledgements_REP, #()))))))))%V with (Server.val (server2.(Server.Id), server2.(Server.NumberOfServers), UnsatisfiedRequests_REP, VectorClock_REP, OperationsPerformed_REP, MyOperations_REP, output_REP, GossipAcknowledgements_REP)%core). iApply "HΦ".
+    wp_load. wp_apply (wp_storeField_struct with "[$H_s]"). { repeat econstructor; eauto. } iIntros "H_s". wp_load. iModIntro. unfold _Data.has_value_of. simpl. change (#server2 .(Server.Id), (#server2 .(Server.NumberOfServers), (UnsatisfiedRequests_REP, (VectorClock_REP, (OperationsPerformed_REP, (MyOperations_REP, (output_REP, (GossipAcknowledgements_REP, #()))))))))%V with (Server.val (server2.(Server.Id), server2.(Server.NumberOfServers), UnsatisfiedRequests_REP, VectorClock_REP, OperationsPerformed_REP, MyOperations_REP, output_REP, GossipAcknowledgements_REP)%core). iApply "HΦ".
     unfold is_server, is_server'. iClear "H8". iClear "H_seen_REP". Tac.simplNotation. iFrame; simpl; Tac.simplNotation; subst. unfold coq_receiveGossip. replace (length msg .(Message.S2S_Gossip_Operations) =? 0)%nat with false; cycle 1. { symmetry; rewrite Nat.eqb_neq. word. } fold first_loop_step. fold second_loop_step. rewrite <- SECOND_LOOP. fold third_loop_step. subst focus. rewrite <- ACCUM. simpl in *. iFrame. pose proof (SessionPrelude.subseq_isSorted_isSorted (well_formed := Operation.well_formed n) _ _ SUBSEQ H4_sorted) as H5_sorted. iPureIntro.
     subst n. unfold u64_le_CONSTANT in *; repeat (split; ss!).
   }
 Qed.
 
-Lemma wp_acknowledgeGossip {OWN_UnsatisfiedRequests: bool} {s} {n: nat} sv msgv msg len_c2s len_s2c len_vc len_op len_mo len_po len_ga :
+Lemma wp_acknowledgeGossip {OWN_UnsatisfiedRequests: bool} {s: Server.t} {n: nat} sv msgv msg len_c2s len_s2c len_vc len_op len_mo len_po len_ga :
   {{{
       is_server' sv s n len_vc len_op len_mo len_po len_ga OWN_UnsatisfiedRequests ∗ 
       is_message msgv msg n len_c2s len_s2c
@@ -553,7 +553,7 @@ Proof.
     + iPureIntro. done.
 Qed.
 
-Lemma wp_getGossipOperations {OWN_UnsatisfiedRequests: bool} {s} {n: nat} sv (serverId: u64) len_vc len_op len_mo len_po len_ga :
+Lemma wp_getGossipOperations {OWN_UnsatisfiedRequests: bool} {s: Server.t} {n: nat} sv (serverId: u64) len_vc len_op len_mo len_po len_ga :
   {{{
       is_server' sv s n len_vc len_op len_mo len_po len_ga OWN_UnsatisfiedRequests
   }}}
@@ -765,13 +765,13 @@ Proof.
       wp_load. wp_apply (wp_NewSlice). iIntros "%s2 H_s2". wp_apply (wp_SliceAppendSlice with "[$H_s2 $H4]"); auto.
       clear s2. iIntros "%s2 [H_s2 H4]". replace (replicate (uint.nat (W64 0)) u64_IntoVal .(IntoVal_def w64)) with ( @nil w64 ) by reflexivity. simpl.
       iDestruct "H_s2" as "[H1_s2 H2_s2]". iMod (own_slice_small_persist with "[$H1_s2]") as "H1_s2".
-      wp_pures. wp_load. wp_pures. change (s2, (_Data.has_value_of_Data msg.(Message.C2S_Client_Data), #()))%V with (to_val (s2, msg .(Message.C2S_Client_Data))).
+      wp_pures. wp_load. wp_pures. change (s2, (_Data.has_value_of msg.(Message.C2S_Client_Data), #()))%V with (to_val (s2, msg .(Message.C2S_Client_Data))).
       iDestruct "H5" as "(%t2_ops & H5 & H_t2_ops)". wp_apply (wp_sortedInsert with "[$H5 $H_t2_ops H1_s2]").
       { instantiate (1 := {| Operation.VersionVector := (<[uint.nat s .(Server.Id):=w64_word_instance .(word.add) x (W64 1)]> s .(Server.VectorClock)); Operation.Data := msg .(Message.C2S_Client_Data); |}). apply list_lookup_total_correct in H_x. subst x. unfold lookup_total. iFrame; Tac.simplNotation; simpl. rewrite length_insert. iPureIntro. repeat (split; try done); try tauto. simpl. eapply Forall_insert; try tauto. change (list_lookup_total (uint.nat s .(Server.Id)) s .(Server.VectorClock)) with (s.(Server.VectorClock) !!! uint.nat s.(Server.Id)). rewrite bool_decide_eq_true in H_OBS1. unfold u64_le_CONSTANT in *. rewrite -> CONSTANT_unfold in *. word. } iIntros "%s3 (H_s3 & %H1_sorted)".
       wp_pures. wp_apply (wp_storeField_struct with "[H_s1]"). { repeat econstructor; eauto. } { iExact "H_s1". } iIntros "H_s1".
       wp_pures. wp_load. wp_pures. wp_apply wp_NewSlice. rewrite SessionPrelude.replicate_nil; trivial. iIntros "%s4 H_s4". wp_apply (wp_SliceAppendSlice with "[H4 H_s4]"). { repeat econstructor; eauto. } { instantiate (5 := @nil u64). iSplitR "H4"; try done. }
       iDestruct "H6" as "(%t1_ops & H6 & H_t1_ops)". clear s4. iIntros "%s4 H_s4". iDestruct "H_s4" as "[[H1_s4 H1_s4'] H2_s4]". iMod (own_slice_small_persist with "[$H1_s4]") as "H1_s4".
-      wp_load. wp_pures. replace (s4, (_Data.has_value_of_Data msg .(Message.C2S_Client_Data), #()))%V with (to_val (s4, msg .(Message.C2S_Client_Data))) by reflexivity. simpl.
+      wp_load. wp_pures. replace (s4, (_Data.has_value_of msg .(Message.C2S_Client_Data), #()))%V with (to_val (s4, msg .(Message.C2S_Client_Data))) by reflexivity. simpl.
       wp_apply (wp_sortedInsert with "[H6 H_t1_ops H1_s4]").
       { iSplitL "H6 H_t1_ops".
         - iExists t1_ops. iFrame.
