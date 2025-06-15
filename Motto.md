@@ -53,4 +53,53 @@ compiled with OCaml 5.2.1
 
 ### 2025-06-15
 
-- Fixed `server.go`: Removed `continue` in `oneOffVersionVector`.
+- Fixed `server.go`:
+
+#### oneOffVersionVector
+
+- Before:
+
+```go
+func oneOffVersionVector(v1 []uint64, v2 []uint64) bool {
+	var output = true
+	var canApply = true
+	var i = uint64(0)
+	var l = uint64(len(v1))
+
+	for i < l {
+		if canApply && v1[i]+1 == v2[i] {
+			canApply = false
+            i++
+            continue
+		}
+        if v1[i] < v2[i] {
+			output = false
+		}
+		i++
+	}
+
+	return output && !canApply
+}
+```
+
+- After:
+
+```go
+func oneOffVersionVector(v1 []uint64, v2 []uint64) bool {
+	var output = true
+	var canApply = true
+	var i = uint64(0)
+	var l = uint64(len(v1))
+
+	for i < l {
+		if canApply && v1[i]+1 == v2[i] {
+			canApply = false
+		} else if v1[i] < v2[i] {
+			output = false
+		}
+		i++
+	}
+
+	return output && !canApply
+}
+```
