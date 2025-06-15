@@ -136,12 +136,13 @@ Proof.
   - iExists false. iExists (W64 0). rewrite Hsz. replace ((W64 (uint.nat x.(Slice.sz)))) with (x.(Slice.sz)) by word. iFrame. iPureIntro. repeat split; word.
   - iIntros "Hpost". wp_pures. iNamed "Hpost". iDestruct "Hpost" as "(H1 & H2 & H3 & %H5 & %H6 & %H7 & %H8 & %H9)". wp_load. iModIntro. iApply "H5". iFrame. destruct H9 as [[H9 H10] | ?]; auto.
     + iPureIntro. rewrite /coq_lexicographicCompare. clear Hsz. clear H5. generalize dependent ys. generalize dependent i. induction xs; auto.
-      { induction ys; auto. intros. clear IHys.
+      { induction ys; auto. }
+      { intros. destruct ys as [ | a0 ys]; simpl in *; try congruence.
         assert (0%nat < uint.nat i <= length (a :: xs)) by now rewrite H9; repeat rewrite length_cons; word.
         assert ((uint.Z a =? uint.Z a0) = true) by now eapply H6; try eassumption; auto. rewrite H0. 
         assert (uint.nat (uint.nat i - 1%nat)%nat = ((uint.nat i) - 1)%nat) by word. eapply IHxs; auto.
-        - rewrite length_cons in H7. assert ((uint.nat i - 1)%nat <= length xs) by word. rewrite <- H1 in H2. eassumption.
-        - rewrite H1. rewrite length_cons in H9. word.
+        - assert ((uint.nat i - 1)%nat <= length xs) by word. rewrite <- H1 in H2. eassumption.
+        - rewrite H1. word.
         - intros. eapply H6.
           + assert ((i' + 1)%nat < uint.nat i <= length (a :: xs)) by word. apply H11.
           + simpl. rewrite lookup_cons_Some. right. assert ((i' + 1 - 1)%nat = i') by word. rewrite H11. split; auto. word.
@@ -149,9 +150,9 @@ Proof.
       } 
     + iPureIntro. rewrite /coq_lexicographicCompare. clear Hsz. clear H5. generalize dependent ys. generalize dependent i. induction xs.
       { intros. destruct H as (? & ? & ? & ?). inversion H. }
-      { induction ys.
+      { destruct ys as [ | a0 ys].
         - intros. destruct H as (? & ? & ? & ? & ?). inversion H0.
-        - clear IHys. intros. destruct (decide (uint.nat i = 0%nat)).
+        - intros. destruct (decide (uint.nat i = 0%nat)).
           + destruct H as (? & ? & ? & ? & ? & ?). rewrite e in H. rewrite e in H0. cbn in *. inversion H. inversion H0. subst. rewrite H1. auto.
           + assert (0%nat < uint.nat i) by word.
             assert (0%nat < uint.nat i <= length (a :: xs)) by word.
@@ -339,7 +340,7 @@ Proof.
     unfold coq_equalSlices. assert (uint.nat i <= length xs) by word. clear H9.  generalize dependent ys. generalize dependent i. induction xs.
     + intros. destruct H11; auto.
       { destruct H0. destruct H0. destruct H0. inversion H0. }
-      { destruct H0. auto. }
+      { destruct H0. destruct ys; simpl in *; trivial; word. }
     + intros. simpl. induction ys.
       { inversion H5. }
       { destruct (decide ((uint.Z a =? uint.Z a0) = true)).

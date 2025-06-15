@@ -100,16 +100,13 @@ Definition oneOffVersionVector: val :=
     Skip;;
     (for: (λ: <>, (![uint64T] "i") < (![uint64T] "l")); (λ: <>, Skip) := λ: <>,
       (if: (![boolT] "canApply") && (((SliceGet uint64T "v1" (![uint64T] "i")) + #1) = (SliceGet uint64T "v2" (![uint64T] "i")))
-      then
-        "canApply" <-[boolT] #false;;
-        "i" <-[uint64T] ((![uint64T] "i") + #1);;
-        Continue
+      then "canApply" <-[boolT] #false
       else
         (if: (SliceGet uint64T "v1" (![uint64T] "i")) < (SliceGet uint64T "v2" (![uint64T] "i"))
         then "output" <-[boolT] #false
-        else #());;
-        "i" <-[uint64T] ((![uint64T] "i") + #1);;
-        Continue));;
+        else #()));;
+      "i" <-[uint64T] ((![uint64T] "i") + #1);;
+      Continue);;
     (![boolT] "output") && (~ (![boolT] "canApply")).
 
 Definition equalSlices: val :=
@@ -262,7 +259,7 @@ Definition processClientRequest: val :=
           (if: (~ ((slice.len (struct.get Server "MyOperations" (![struct.t Server] "s"))) ≤ (![uint64T] "guard")))
           then (#false, ![struct.t Server] "s", ![struct.t Message] "reply")
           else
-            SliceSet uint64T (struct.get Server "VectorClock" (![struct.t Server] "s")) (struct.get Server "Id" "server") ((SliceGet uint64T (struct.get Server "VectorClock" (![struct.t Server] "s")) (struct.get Server "Id" "server")) + #1);;
+            SliceSet uint64T (struct.get Server "VectorClock" (![struct.t Server] "s")) (struct.get Server "Id" (![struct.t Server] "s")) ((SliceGet uint64T (struct.get Server "VectorClock" (![struct.t Server] "s")) (struct.get Server "Id" (![struct.t Server] "s"))) + #1);;
             struct.storeF Server "OperationsPerformed" "s" (sortedInsert (struct.get Server "OperationsPerformed" (![struct.t Server] "s")) (struct.mk Operation [
               "VersionVector" ::= SliceAppendSlice uint64T (NewSlice uint64T #0) (struct.get Server "VectorClock" (![struct.t Server] "s"));
               "Data" ::= struct.get Message "C2S_Client_Data" "request"

@@ -456,13 +456,11 @@ Module ServerSide.
     end.
 
   Fixpoint coq_lexicographicCompare (v1: list u64) (v2: list u64) : bool :=
-    match v1 with
-    | [] => false
-    | h1 :: t1 =>
-      match v2 with
-      | [] => false
-      | h2 :: t2 => if uint.Z h1 =? uint.Z h2 then coq_lexicographicCompare t1 t2 else uint.Z h1 >? uint.Z h2
-      end
+    match v1, v2 with
+    | [], [] => false
+    | [], h2 :: t2 => false
+    | h1 :: t1, [] => true
+    | h1 :: t1, h2 :: t2 => if uint.Z h1 =? uint.Z h2 then coq_lexicographicCompare t1 t2 else uint.Z h1 >? uint.Z h2
     end.
 
   Definition coq_maxTwoInts (x: u64) (y: u64) : u64 :=
@@ -493,13 +491,11 @@ Module ServerSide.
     output && negb canApply.
 
   Fixpoint coq_equalSlices (s1: list u64) (s2: list u64) : bool :=
-    match s1 with
-    | [] => true
-    | h1 :: t1 =>
-      match s2 with
-      | [] => true
-      | h2 :: t2 => if negb (uint.Z h1 =? uint.Z h2) then false else coq_equalSlices t1 t2
-      end
+    match s1, s2 with
+    | [], [] => true
+    | [], h2 :: t2 => false
+    | h1 :: t1, [] => false
+    | h1 :: t1, h2 :: t2 => (uint.Z h1 =? uint.Z h2)%Z && coq_equalSlices t1 t2
     end.
 
   Variant binarySearch_spec (needle: Operation.t) (l: list Operation.t) (n: nat) (RESULT: nat) : Prop :=

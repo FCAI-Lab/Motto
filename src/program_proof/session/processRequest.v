@@ -616,7 +616,7 @@ Qed.
 Lemma wp_write (P_c: Client.t -> Prop) (c: Client.t) (serverId: u64) (value: u64) (n: nat) cv :
   {{{
       is_client cv c n ∗
-      ⌜CLIENT_INVARIANT P_c c /\ u64_le_CONSTANT serverId /\ u64_le_CONSTANT value⌝
+      ⌜CLIENT_INVARIANT P_c c /\ u64_le_CONSTANT serverId⌝
   }}}
     SessionClient.write (Client.val cv) (#serverId) (#value)
   {{{
@@ -625,7 +625,7 @@ Lemma wp_write (P_c: Client.t -> Prop) (c: Client.t) (serverId: u64) (value: u64
       is_message msgv (coq_write c serverId value) n n 0%nat
   }}}.
 Proof.
-  unfold Client.val, Message.val. TypeVector.des cv. iIntros "%Φ (H_is_client & (%H_invariant & %H_serverId_le & %H_value_le)) HΦ".
+  unfold Client.val, Message.val. TypeVector.des cv. iIntros "%Φ (H_is_client & (%H_invariant & %H_serverId_le)) HΦ".
   iDestruct "H_is_client" as "(%H1 & %H2 & H3 & H4 & %H5 & %H6)". destruct H_invariant as [? ?].
   Tac.simplNotation; simpl; subst; rewrite/ write.
   iPoseProof (own_slice_small_sz with "[$H3]") as "%LENGTH1".
@@ -861,7 +861,7 @@ Lemma wp_processRequest (c: Client.t) (requestType: u64) (serverId: u64) (value:
   {{{
       is_client cv c n ∗
       is_message msgv ackMessage n n n ∗
-      ⌜CLIENT_INVARIANT (fun _c => _c.(Client.Id) = c_Id /\ _c.(Client.NumberOfServers) = c_NumberOfServers /\ _c.(Client.SessionSemantic) = c_SessionSemantic) c /\ u64_le_CONSTANT requestType /\ u64_le_CONSTANT serverId /\ u64_le_CONSTANT value⌝
+      ⌜CLIENT_INVARIANT (fun _c => _c.(Client.Id) = c_Id /\ _c.(Client.NumberOfServers) = c_NumberOfServers /\ _c.(Client.SessionSemantic) = c_SessionSemantic) c /\ u64_le_CONSTANT requestType /\ u64_le_CONSTANT serverId⌝
   }}}
     SessionClient.processRequest (Client.val cv) (#requestType) (#serverId) (#value) (Message.val msgv)
   {{{
@@ -872,7 +872,7 @@ Lemma wp_processRequest (c: Client.t) (requestType: u64) (serverId: u64) (value:
       ⌜CLIENT_INVARIANT (fun _c => _c.(Client.Id) = c_Id /\ _c.(Client.NumberOfServers) = c_NumberOfServers /\ _c.(Client.SessionSemantic) = c_SessionSemantic) (coq_processRequest c requestType serverId value ackMessage).1⌝
   }}}.
 Proof.
-  set (fun _c => _c.(Client.Id) = c_Id /\ _c.(Client.NumberOfServers) = c_NumberOfServers /\ _c.(Client.SessionSemantic) = c_SessionSemantic) as P_c. TypeVector.des cv. TypeVector.des msgv. iIntros "%Φ (H_is_client & H_is_message & %H_invariant & %H_requestType_le & %H_serverId_le & %H_value_le) HΦ".
+  set (fun _c => _c.(Client.Id) = c_Id /\ _c.(Client.NumberOfServers) = c_NumberOfServers /\ _c.(Client.SessionSemantic) = c_SessionSemantic) as P_c. TypeVector.des cv. TypeVector.des msgv. iIntros "%Φ (H_is_client & H_is_message & %H_invariant & %H_requestType_le & %H_serverId_le) HΦ".
   iDestruct "H_is_client" as "(%H1 & %H2 & H3 & H5 & %H4 & %H6)". iDestruct "H_is_message" as "(%H11 & %H12 & %H13 & %H14 & %H15 & H16 & %H17 & %H18 & H19 & %H20 & %H21 & %H22 & %H23 & %H24 & %H25 & H26 & %H27 & %H28 & %H29 & %H30)".
   Tac.simplNotation; simpl; subst; rewrite /SessionClient.processRequest.
   iPoseProof (own_slice_small_sz with "[$H3]") as "%LENGTH1".

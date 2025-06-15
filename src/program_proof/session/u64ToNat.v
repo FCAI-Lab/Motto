@@ -795,6 +795,7 @@ Module Server_nat.
 
   Import SessionPrelude.
 
+  (*
   Section refine_coq_compareVersionVector.
 
   Fixpoint coq_compareVersionVector (v1 : list nat) (v2 : list nat) : bool :=
@@ -1110,6 +1111,7 @@ Module Server_nat.
   (* TODO *)
 
   End refine_coq_processRequest.
+  *)
 
 End Server_nat.
 
@@ -1117,6 +1119,7 @@ Module Client_nat.
 
   Import SessionPrelude.
 
+  (*
   Section refine_coq_maxTS.
 
   Fixpoint coq_maxTS (xs : list nat) (ys : list nat) : list nat :=
@@ -1244,5 +1247,6 @@ Module Client_nat.
   Qed.
 
   End refine_coq_processRequest.
+  *)
 
 End Client_nat.

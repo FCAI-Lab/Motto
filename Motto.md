@@ -50,3 +50,8 @@ compiled with OCaml 5.2.1
 ### 2025-06-12
 
 - Completed the file `gossip.v` and `processRequest`. It remains to show `Coq_nat -> Coq_u64`.
+
+### 2025-06-15
+
+- Fixed `server.go`: 
++ Removed `continue` in `oneOffVersionVector`.
