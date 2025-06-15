@@ -446,13 +446,11 @@ Module ServerSide.
   Section Coq_u64.
 
   Fixpoint coq_compareVersionVector (v1: list u64) (v2: list u64) : bool :=
-    match v1 with
-    | [] => true
-    | h1 :: t1 =>
-      match v2 with
-      | [] => true
-      | h2 :: t2 => if uint.Z h1 <? uint.Z h2 then false else coq_compareVersionVector t1 t2
-      end
+    match v1, v2 with
+    | [], [] => true
+    | [], h2 :: t2 => false
+    | h1 :: t1, [] => false
+    | h1 :: t1, h2 :: t2 => (uint.Z h1 >=? uint.Z h2) && coq_compareVersionVector t1 t2
     end.
 
   Fixpoint coq_lexicographicCompare (v1: list u64) (v2: list u64) : bool :=

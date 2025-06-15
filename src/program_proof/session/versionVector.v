@@ -57,14 +57,14 @@ Proof.
   - iExists true. iExists (W64 0). rewrite Hsz. assert (#(W64 (uint.nat x.(Slice.sz))) = #x.(Slice.sz)) by now rewrite w64_to_nat_id. rewrite H. iDestruct "H2" as "[H2 H3]". iFrame. iPureIntro. repeat (split; (word || auto)).
   - iIntros "H". iNamed "H". iDestruct "H" as "(H1 & H2 & H8 & %H5 & %H6 & %H7 & %H8 & %H9 & %H10 & %H11)". wp_pures. wp_load. iModIntro. iApply "H3". iFrame. iPureIntro. clear Hsz.
     assert (uint.nat i <= length xs) by word. clear H9. generalize dependent ys. generalize dependent i. induction xs.
-    { intros. simpl in H5. symmetry in H5. apply nil_length_inv in H5. simpl. cbn in *. destruct H11 as [H11 | H12]; tauto || auto. destruct H11 as (? & ? & ? & ?). inversion H0. }
+    { intros. simpl in H5. symmetry in H5. apply nil_length_inv in H5. simpl. cbn in *. destruct H11 as [H11 | H12]; tauto || auto; destruct ys; simpl in *; try congruence; try tauto. destruct H11. destruct H0. Tac.des. rewrite lookup_nil in H1. congruence. }
     { induction ys; intros; try now inversion H5.
       simpl. destruct (decide (uint.Z a <? uint.Z a0 = true)).
-      - assert (uint.Z a <? uint.Z a0 = true) by word.
+      - assert (uint.Z a >=? uint.Z a0 = false) by word.
         rewrite H0. destruct H11; auto.
         + destruct H1 as (? & ? & ? & ? & ? & ?). auto.
         + destruct H1. eapply (H8 0%nat a a0); try eassumption; auto. rewrite H1. replace (uint.nat (W64 (length (a :: xs)))) with (length (a :: xs)) by word. repeat rewrite length_cons. word.
-      - intros. assert (uint.Z a <? uint.Z a0 = false) by word. rewrite H0.
+      - intros. assert (uint.Z a >=? uint.Z a0 = true) by word. rewrite H0.
         assert (uint.nat (uint.nat i - 1%nat)%nat = ((uint.nat i) - 1)%nat) by word.
         eapply IHxs; auto.
         + rewrite length_cons in H6. word.
