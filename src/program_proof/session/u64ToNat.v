@@ -31,7 +31,9 @@ Inductive list_corres {A : Type} {A' : Type} `{Similarity A A'} : Similarity (li
 
 #[local] Hint Constructors list_corres : core.
 
-#[global] Existing Instance list_corres.
+#[global]
+Instance Similarity_list {A : Type} {A' : Type} (SIM : Similarity A A') : Similarity (list A) (list A') :=
+  @list_corres A A' SIM.
 
 Inductive option_corres {A : Type} {A' : Type} {SIM : Similarity A A'} : Similarity (option A) (option A') :=
   | None_corres
@@ -42,7 +44,9 @@ Inductive option_corres {A : Type} {A' : Type} {SIM : Similarity A A'} : Similar
 
 #[local] Hint Constructors option_corres : core.
 
-#[global] Existing Instance option_corres.
+#[global]
+Instance Similarity_option {A : Type} {A' : Type} (SIM : Similarity A A') : Similarity (option A) (option A') :=
+  @option_corres A A' SIM.
 
 #[global]
 Instance Similarity_bool : Similarity bool bool :=
@@ -58,216 +62,9 @@ Instance Similarity_Data : Similarity _Data.w _Data.w :=
 
 (** End SIMILARITY. *)
 
-(** Section MONAD. *)
-
-#[universes(polymorphic=yes), projections(primitive)]
-Class isMonad@{d c} (M : Type@{d} -> Type@{c}) : Type@{max(d + 1, c + 1)} :=
-  { bind {A : Type@{d}} {B : Type@{d}} (m : M A) (k : A -> M B) : M B
-  ; pure {A : Type@{d}} : A -> M A
-  ; bind_cong2 {A : Type@{d}} {B : Type@{d}} (m1 : M A) (m2 : M A) (k1 : A -> M B) (k2 : A -> M B)
-    (m1_eq_m2 : m1 = m2)
-    (k1_eq_k2 : forall x : A, k1 x = k2 x)
-    : bind m1 k1 = bind m2 k2
-  ; bind_assoc {A : Type@{d}} {B : Type@{d}} {C : Type@{d}} (m : M A) (k : A -> M B) (k' : B -> M C)
-    : bind m (fun x => bind (k x) k') = bind (bind m k) k'
-  ; bind_pure_l {A : Type@{d}} {B : Type@{d}} (k : A -> M B) (x : A)
-    : bind (pure x) k = k x
-  ; bind_pure_r {A : Type@{d}} (m : M A)
-    : bind m pure = m
-  }.
-
-Infix ">>=" := bind.
-
-#[universes(polymorphic=yes)]
-Definition monad@{u v} {M : Type@{u} -> Type@{v}} {MONAD : isMonad@{u v} M} {A : Type@{u}} : Type@{v} :=
-  M A.
-
-Declare Scope monad_scope.
-Declare Custom Entry do_notation.
-
-Delimit Scope monad_scope with monad.
-Bind Scope monad_scope with monad.
-
-Reserved Notation "'do' m" (m custom do_notation at level 10, at level 0, format "'do'  '//' m").
-Notation "'do' m" := m : monad_scope.
-Notation "'do' m" := (m : monad).
-
-Notation "x '<-' m1 ';' m2" := (m1 >>= fun x => m2) (in custom do_notation at level 0, x ident, m1 constr, m2 custom do_notation at level 10, format "x  '<-'  m1 ';' '//' m2").
-Notation "''' x '<-' m1 ';' m2" := (m1 >>= fun 'x => m2) (in custom do_notation at level 0, x pattern, m1 constr, m2 custom do_notation at level 10, format "''' x  '<-'  m1 ';' '//' m2").
-Notation "m1 ';' m2" := (m1 >>= fun _ => m2) (in custom do_notation at level 0, m1 constr, m2 custom do_notation at level 10, format "m1 ';' '//' m2").
-Notation "'ret' t" := (pure t) (in custom do_notation at level 10, t constr, format "'ret'  t").
-Notation "t" := t (in custom do_notation at level 0, t constr).
-
-#[local] Open Scope monad_scope.
-
-#[universes(polymorphic=yes)]
-Definition identity@{u} (A : Type@{u}) : Type@{u} :=
-  A.
-
-#[global, program]
-Instance identity_isMonad : isMonad identity :=
-  { pure {A} (x : A) := x
-  ; bind {A} {B} (m : A) (k : A -> B) := k m
-  }.
-Next Obligation.
-  intros; cbn in *. congruence.
-Qed.
-Next Obligation.
-  intros; cbn in *. congruence.
-Qed.
-Next Obligation.
-  intros; cbn in *. congruence.
-Qed.
-Next Obligation.
-  intros; cbn in *. congruence.
-Qed.
-
-#[universes(polymorphic=yes)]
-Definition Err@{u} (A : Type@{u}) : Type@{u} :=
-  (bool * A)%type.
-
-#[global, program]
-Instance Err_isMonad : isMonad Err :=
-  { pure {A} (x : A) := (true, x)
-  ; bind {A} {B} (m : Err A) (k : A -> Err B) :=
-    let (b, y) := k m.2 in
-    (m.1 && b, y)
-  }.
-Next Obligation.
-  intros; cbn in *. destruct m1, m2; cbn in *.
-  destruct (k1 a) as [? ?] eqn: H_OBS;
-  destruct (k2 a0) as [? ?] eqn: H_OBS';
-  cbn in *; congruence.
-Qed.
-Next Obligation.
-  intros; cbn in *. destruct m as [? ?]; cbn in *.
-  destruct (k a) as [? ?] eqn: H_OBS; cbn in *.
-  destruct (k' b1) as [? ?] eqn: H_OBS'; cbn in *.
-  rewrite andb_assoc; congruence.
-Qed.
-Next Obligation.
-  intros; cbn in *. destruct (k x) as [? ?]; trivial.
-Qed.
-Next Obligation.
-  intros; cbn in *. destruct m as [? ?]; simpl. rewrite andb_true_r. trivial.
-Qed.
-
-#[global, program]
-Instance option_isMonad : isMonad option :=
-  { pure {A} := @Some A
-  ; bind {A} {B} (m : option A) (k : A -> option B) :=
-    match m with
-    | Some x => k x
-    | None => None
-    end
-  }.
-Next Obligation.
-  intros; cbn in *. destruct m1, m2; cbn in *; try congruence.
-Qed.
-Next Obligation.
-  intros; cbn in *. destruct m as [? | ]; cbn in *; try congruence.
-Qed.
-Next Obligation.
-  intros; cbn in *. destruct (k x) as [? | ]; cbn in *; try congruence.
-Qed.
-Next Obligation.
-  intros; cbn in *. destruct m as [? | ]; cbn in *; try congruence.
-Qed.
-
-Fixpoint fold_left' {M : Type -> Type} `{isMonad M} {A : Type} {B : Type} (f : A -> B -> M A) (xs : list B) (z : A) : M A :=
-  match xs with
-  | [] => do
-    ret z
-  | x :: xs' => do
-    'y <- f z x;
-    fold_left' f xs' y
-  end.
-
-Class MonadError (M : Type -> Type) `{isMonad M} : Type :=
-  { put_if {A : Type} (guard : bool) : A -> M A
-  ; tryget {A : Type} : M A -> option A
-  ; tryget_put_if_true {A : Type} (x : A) (r : option A)
-    : tryget (put_if true x) = r <-> Some x = r
-  ; tryget_put_if_false {A : Type} (x : A) (r : option A)
-    : tryget (put_if false x) = r <-> None = r
-  ; tryget_pure {A : Type} (x : A)
-    : forall z : A, tryget (pure x) = Some z -> x = z
-  ; tryget_bind {A : Type} {B : Type} (m : M A) (k : A -> M B)
-    : forall z : B, tryget (bind m k) = Some z -> (exists x : A, tryget m = Some x /\ tryget (k x) = Some z)
-  }.
-
-#[global, program]
-Instance Err_MonadError : MonadError Err :=
-  { put_if {A} (guard : bool) (x : A) := (guard, x)
-  ; tryget {A} (m : Err A) := if m.1 then Some m.2 else None
-  }.
-Next Obligation.
-  intros. simpl in *. eauto.
-Qed.
-Next Obligation.
-  intros. simpl in *. eauto.
-Qed.
-Next Obligation.
-  intros. simpl in *. congruence.
-Qed.
-Next Obligation.
-  intros. cbn in *. destruct m as [[ | ] x]; cbn in *.
-  - exists x. split; trivial. destruct (k x) as [[ | ] y]; cbn in *; try congruence.
-  - destruct (k x) as [[ | ] y]; cbn in *; try congruence.
-Qed.
-
-#[global, program]
-Instance option_MonadError : MonadError option :=
-  { put_if {A} (guard : bool) (x : A) := if guard then Some x else None
-  ; tryget {A} (m : option A) := m
-  }.
-Next Obligation.
-  intros. simpl in *. eauto.
-Qed.
-Next Obligation.
-  intros. unfold pure in *. eauto.
-Qed.
-Next Obligation.
-  intros. unfold pure in *. simpl in *. congruence.
-Qed.
-Next Obligation.
-  intros. cbn in *. destruct m as [x | ]; simpl in *; try congruence.
-  exists x. split; trivial.
-Qed.
-
-(** End MONAD. *)
-
-(** Section BASIC_CORRES. *)
-
-Definition param0func_corres `{MonadError M} {A : Type} {A' : Type} `{Similarity A A'} (f : A) (f' : M A') : Prop :=
-  forall a' : A', tryget f' = Some a' ->
-  exists a : A, a =~= a' /\ f = a.
-
-Definition param1func_corres `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B) (f' : A' -> M B') : Prop :=
-  forall a' : A', forall b' : B', tryget (f' a') = Some b' ->
-  forall a : A, a =~= a' ->
-  exists b : B, b =~= b' /\ f a = b.
-
-Definition param2func_corres `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} (f : A -> B -> C) (f' : A' -> B' -> M C') : Prop :=
-  forall a' : A', forall b' : B', forall c' : C', tryget (f' a' b') = Some c' ->
-  forall a : A, a =~= a' ->
-  forall b : B, b =~= b' ->
-  exists c : C, c =~= c' /\ f a b = c.
-
-Definition param3func_corres `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} {D : Type} {D' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} `{Similarity D D'} (f : A -> B -> C -> D) (f' : A' -> B' -> C' -> M D') : Prop :=
-  forall a' : A', forall b' : B', forall c' : C', forall d' : D', tryget (f' a' b' c') = Some d' ->
-  forall a : A, a =~= a' ->
-  forall b : B, b =~= b' ->
-  forall c : C, c =~= c' ->
-  exists d : D, d =~= d' /\ f a b c = d.
-
-#[global]
-Instance Similarity_u64 : Similarity u64 nat :=
-  fun u => fun n => uint.nat u = n /\ uint.Z u <= CONSTANT - 1.
-
 (** Section CORRES_LEMMAS. *)
 
-Lemma list_corres_length {A : Type} {A' : Type} {SIM : Similarity A A'} (xs : list A) (xs' : list A')
+  Lemma list_corres_length {A : Type} {A' : Type} {SIM : Similarity A A'} (xs : list A) (xs' : list A')
   (xs_corres : xs =~= xs')
   : @length A xs = @length A' xs'.
 Proof.
@@ -437,149 +234,215 @@ Proof.
   subst n'; induction n as [ | n IH]; simpl; eauto.
 Qed.
 
+#[global]
+Instance Similarity_u64 : Similarity u64 nat :=
+  fun u => fun n => uint.nat u = n /\ uint.Z u <= CONSTANT - 1.
+
 (** End CORRES_LEMMAS. *)
 
-Module Operation'.
+(** Section MONAD. *)
 
-  Record t : Type :=
-    mk
-    { VersionVector : list nat
-    ; Data : _Data.w
-    }.
+#[universes(polymorphic=yes), projections(primitive)]
+Class isMonad@{d c} (M : Type@{d} -> Type@{c}) : Type@{max(d + 1, c + 1)} :=
+  { bind {A : Type@{d}} {B : Type@{d}} (m : M A) (k : A -> M B) : M B
+  ; pure {A : Type@{d}} : A -> M A
+  ; bind_cong2 {A : Type@{d}} {B : Type@{d}} (m1 : M A) (m2 : M A) (k1 : A -> M B) (k2 : A -> M B)
+    (m1_eq_m2 : m1 = m2)
+    (k1_eq_k2 : forall x : A, k1 x = k2 x)
+    : bind m1 k1 = bind m2 k2
+  ; bind_assoc {A : Type@{d}} {B : Type@{d}} {C : Type@{d}} (m : M A) (k : A -> M B) (k' : B -> M C)
+    : bind m (fun x => bind (k x) k') = bind (bind m k) k'
+  ; bind_pure_l {A : Type@{d}} {B : Type@{d}} (k : A -> M B) (x : A)
+    : bind (pure x) k = k x
+  ; bind_pure_r {A : Type@{d}} (m : M A)
+    : bind m pure = m
+  }.
 
-  Record corres (op : Operation.t) (op' : Operation'.t) : Prop :=
-    Similarity_Operation_INTRO
-    { VersionVector_corres : op.(Operation.VersionVector) =~= op'.(VersionVector)
-    ; Data_corres : op.(Operation.Data) =~= op'.(Data)
-    }.
+Infix ">>=" := bind.
 
-End Operation'.
+#[universes(polymorphic=yes)]
+Definition monad@{u v} {M : Type@{u} -> Type@{v}} {MONAD : isMonad@{u v} M} {A : Type@{u}} : Type@{v} :=
+  M A.
 
-#[local] Hint Constructors Operation'.corres : core.
+Declare Scope monad_scope.
+Declare Custom Entry do_notation.
 
-#[global]
-Instance Similarity_Operation : Similarity Operation.t Operation'.t :=
-  Operation'.corres.
+Delimit Scope monad_scope with monad.
+Bind Scope monad_scope with monad.
 
-Module Message'.
+Reserved Notation "'do' m" (m custom do_notation at level 10, at level 0, format "'do'  '//' m").
+Notation "'do' m" := m : monad_scope.
+Notation "'do' m" := (m : monad).
 
-  Record t : Type :=
-    mk
-    { MessageType : nat
-    ; C2S_Client_Id : nat
-    ; C2S_Server_Id : nat
-    ; C2S_Client_OperationType : nat
-    ; C2S_Client_Data : _Data.w
-    ; C2S_Client_VersionVector : list nat
-    ; S2S_Gossip_Sending_ServerId : nat
-    ; S2S_Gossip_Receiving_ServerId : nat
-    ; S2S_Gossip_Operations : list Operation'.t
-    ; S2S_Gossip_Index : nat
-    ; S2S_Acknowledge_Gossip_Sending_ServerId : nat
-    ; S2S_Acknowledge_Gossip_Receiving_ServerId : nat
-    ; S2S_Acknowledge_Gossip_Index : nat
-    ; S2C_Client_OperationType : nat
-    ; S2C_Client_Data : _Data.w
-    ; S2C_Client_VersionVector : list nat
-    ; S2C_Server_Id : nat
-    ; S2C_Client_Number : nat
-    }.
+Notation "''' x '<-' m1 ';' m2" := (m1 >>= fun 'x => m2) (in custom do_notation at level 0, x pattern, m1 constr, m2 custom do_notation at level 10, format "''' x  '<-'  m1 ';' '//' m2").
+Notation "m1 ';' m2" := (m1 >>= fun _ => m2) (in custom do_notation at level 0, m1 constr, m2 custom do_notation at level 10, format "m1 ';' '//' m2").
+Notation "'ret' t" := (pure t) (in custom do_notation at level 10, t constr, format "'ret'  t").
+Notation "t" := t (in custom do_notation at level 0, t constr).
 
-  Record corres (msg : Message.t) (msg' : Message'.t) : Prop :=
-    Similarity_Message_INTRO
-    { MessageType_corres : msg.(Message.MessageType) =~= msg'.(MessageType)
-    ; C2S_Client_Id_corres : msg.(Message.C2S_Client_Id) =~= msg'.(C2S_Client_Id)
-    ; C2S_Server_Id_corres : msg.(Message.C2S_Server_Id) =~= msg'.(C2S_Server_Id)
-    ; C2S_Client_OperationType_corres : msg.(Message.C2S_Client_OperationType) =~= msg'.(C2S_Client_OperationType)
-    ; C2S_Client_Data_corres_corres : msg.(Message.C2S_Client_Data) =~= msg'.(C2S_Client_Data)
-    ; C2S_Client_VersionVector_corres : msg.(Message.C2S_Client_VersionVector) =~= msg'.(C2S_Client_VersionVector)
-    ; S2S_Gossip_Sending_ServerId_corres : msg.(Message.S2S_Gossip_Sending_ServerId) =~= msg'.(S2S_Gossip_Sending_ServerId)
-    ; S2S_Gossip_Receiving_ServerId_corres : msg.(Message.S2S_Gossip_Receiving_ServerId) =~= msg'.(S2S_Gossip_Receiving_ServerId)
-    ; S2S_Gossip_Operations_corres : msg.(Message.S2S_Gossip_Operations) =~= msg'.(S2S_Gossip_Operations)
-    ; S2S_Gossip_Index_corres : msg.(Message.S2S_Gossip_Index) =~= msg'.(S2S_Gossip_Index)
-    ; S2S_Acknowledge_Gossip_Sending_ServerId_corres : msg.(Message.S2S_Acknowledge_Gossip_Sending_ServerId) =~= msg'.(S2S_Acknowledge_Gossip_Sending_ServerId)
-    ; S2S_Acknowledge_Gossip_Receiving_ServerId_corres : msg.(Message.S2S_Acknowledge_Gossip_Receiving_ServerId) =~= msg'.(S2S_Acknowledge_Gossip_Receiving_ServerId)
-    ; S2S_Acknowledge_Gossip_Index_corres : msg.(Message.S2S_Acknowledge_Gossip_Index) =~= msg'.(S2S_Acknowledge_Gossip_Index)
-    ; S2C_Client_OperationType_corres : msg.(Message.S2C_Client_OperationType) =~= msg'.(S2C_Client_OperationType)
-    ; S2C_Client_Data_corres : msg.(Message.S2C_Client_Data) =~= msg'.(S2C_Client_Data)
-    ; S2C_Client_VersionVector_corres : msg.(Message.S2C_Client_VersionVector) =~= msg'.(S2C_Client_VersionVector)
-    ; S2C_Server_Id_corres : msg.(Message.S2C_Server_Id) =~= msg'.(S2C_Server_Id)
-    ; S2C_Client_Number_corres : msg.(Message.S2C_Client_Number) =~= msg'.(S2C_Client_Number)
-    }.
+#[local] Open Scope monad_scope.
 
-End Message'.
+#[universes(polymorphic=yes)]
+Definition identity@{u} (A : Type@{u}) : Type@{u} :=
+  A.
 
-#[local] Hint Constructors Message'.corres : core.
+#[global, program]
+Instance identity_isMonad : isMonad identity :=
+  { pure {A} (x : A) := x
+  ; bind {A} {B} (m : A) (k : A -> B) := k m
+  }.
+Next Obligation.
+  intros; cbn in *. congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. congruence.
+Qed.
 
-#[global]
-Instance Similarity_Message : Similarity Message.t Message'.t :=
-  Message'.corres.
+#[universes(polymorphic=yes)]
+Definition Err@{u} (A : Type@{u}) : Type@{u} :=
+  (bool * A)%type.
 
-Module Server'.
+#[global, program]
+Instance Err_isMonad : isMonad Err :=
+  { pure {A} (x : A) := (true, x)
+  ; bind {A} {B} (m : Err A) (k : A -> Err B) :=
+    let (b, y) := k m.2 in
+    (m.1 && b, y)
+  }.
+Next Obligation.
+  intros; cbn in *. destruct m1, m2; cbn in *.
+  destruct (k1 a) as [? ?] eqn: H_OBS;
+  destruct (k2 a0) as [? ?] eqn: H_OBS';
+  cbn in *; congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. destruct m as [? ?]; cbn in *.
+  destruct (k a) as [? ?] eqn: H_OBS; cbn in *.
+  destruct (k' b1) as [? ?] eqn: H_OBS'; cbn in *.
+  rewrite andb_assoc; congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. destruct (k x) as [? ?]; trivial.
+Qed.
+Next Obligation.
+  intros; cbn in *. destruct m as [? ?]; simpl. rewrite andb_true_r. trivial.
+Qed.
 
-  Record t : Type :=
-    mk
-    { Id : nat
-    ; NumberOfServers : nat
-    ; UnsatisfiedRequests : list Message'.t
-    ; VectorClock : list nat
-    ; OperationsPerformed : list Operation'.t
-    ; MyOperations : list Operation'.t
-    ; PendingOperations : list Operation'.t
-    ; GossipAcknowledgements : list nat
-    }.
+#[global, program]
+Instance option_isMonad : isMonad option :=
+  { pure {A} := @Some A
+  ; bind {A} {B} (m : option A) (k : A -> option B) :=
+    match m with
+    | Some x => k x
+    | None => None
+    end
+  }.
+Next Obligation.
+  intros; cbn in *. destruct m1, m2; cbn in *; try congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. destruct m as [? | ]; cbn in *; try congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. destruct (k x) as [? | ]; cbn in *; try congruence.
+Qed.
+Next Obligation.
+  intros; cbn in *. destruct m as [? | ]; cbn in *; try congruence.
+Qed.
 
-  Record corres (s : Server.t) (s' : Server'.t) : Prop :=
-    Similarity_Server_INTRO
-    { Id_corres : s.(Server.Id) =~= s'.(Id)
-    ; NumberOfServers_corres : s.(Server.NumberOfServers) =~= s'.(NumberOfServers)
-    ; UnsatisfiedRequests_corres : s.(Server.UnsatisfiedRequests) =~= s'.(UnsatisfiedRequests)
-    ; VectorClock_corres : s.(Server.VectorClock) =~= s'.(VectorClock)
-    ; OperationsPerformed_corres : s.(Server.OperationsPerformed) =~= s'.(OperationsPerformed)
-    ; MyOperations_corres : s.(Server.MyOperations) =~= s'.(MyOperations)
-    ; PendingOperations_corres : s.(Server.PendingOperations) =~= s'.(PendingOperations)
-    ; GossipAcknowledgements_corres : s.(Server.GossipAcknowledgements) =~= s'.(GossipAcknowledgements)
-    }.
+Fixpoint fold_left' {M : Type -> Type} `{isMonad M} {A : Type} {B : Type} (f : A -> B -> M A) (xs : list B) (z : A) : M A :=
+  match xs with
+  | [] => do
+    ret z
+  | x :: xs' => do
+    'y <- f z x;
+    fold_left' f xs' y
+  end.
 
-End Server'.
+Class MonadError (M : Type -> Type) `{isMonad M} : Type :=
+  { put_if {A : Type} (guard : bool) : A -> M A
+  ; tryget {A : Type} : M A -> option A
+  ; tryget_put_if_true {A : Type} (x : A) (r : option A)
+    : tryget (put_if true x) = r <-> Some x = r
+  ; tryget_put_if_false {A : Type} (x : A) (r : option A)
+    : tryget (put_if false x) = r <-> None = r
+  ; tryget_pure {A : Type} (x : A)
+    : forall z : A, tryget (pure x) = Some z -> x = z
+  ; tryget_bind {A : Type} {B : Type} (m : M A) (k : A -> M B)
+    : forall z : B, tryget (bind m k) = Some z -> (exists x : A, tryget m = Some x /\ tryget (k x) = Some z)
+  }.
 
-#[local] Hint Constructors Server'.corres : core.
+#[global, program]
+Instance Err_MonadError : MonadError Err :=
+  { put_if {A} (guard : bool) (x : A) := (guard, x)
+  ; tryget {A} (m : Err A) := if m.1 then Some m.2 else None
+  }.
+Next Obligation.
+  intros. simpl in *. eauto.
+Qed.
+Next Obligation.
+  intros. simpl in *. eauto.
+Qed.
+Next Obligation.
+  intros. simpl in *. congruence.
+Qed.
+Next Obligation.
+  intros. cbn in *. destruct m as [[ | ] x]; cbn in *.
+  - exists x. split; trivial. destruct (k x) as [[ | ] y]; cbn in *; try congruence.
+  - destruct (k x) as [[ | ] y]; cbn in *; try congruence.
+Qed.
 
-#[global]
-Instance Similarity_Server : Similarity Server.t Server'.t :=
-  Server'.corres.
+#[global, program]
+Instance option_MonadError : MonadError option :=
+  { put_if {A} (guard : bool) (x : A) := if guard then Some x else None
+  ; tryget {A} (m : option A) := m
+  }.
+Next Obligation.
+  intros. simpl in *. eauto.
+Qed.
+Next Obligation.
+  intros. unfold pure in *. eauto.
+Qed.
+Next Obligation.
+  intros. unfold pure in *. simpl in *. congruence.
+Qed.
+Next Obligation.
+  intros. cbn in *. destruct m as [x | ]; simpl in *; try congruence.
+  exists x. split; trivial.
+Qed.
 
-Module Client'.
+(** End MONAD. *)
 
-  Record t : Type :=
-    mk
-    { Id : nat
-    ; NumberOfServers : nat
-    ; WriteVersionVector : list nat
-    ; ReadVersionVector : list nat
-    ; SessionSemantic : nat
-    }.
+(** Section BASIC_CORRES. *)
 
-  Record corres (c : Client.t) (c' : Client'.t) : Prop :=
-    Similarity_Client_INTRO
-    { Id_corres : c.(Client.Id) =~= c'.(Id)
-    ; NumberOfServers_corres : c.(Client.NumberOfServers) =~= c'.(NumberOfServers)
-    ; WriteVersionVector_corres : c.(Client.WriteVersionVector) =~= c'.(WriteVersionVector)
-    ; ReadVersionVector_corres : c.(Client.ReadVersionVector) =~= c'.(ReadVersionVector)
-    ; SessionSemantic_corres : c.(Client.SessionSemantic) =~= c'.(SessionSemantic)
-    }.
+Definition param0func_corres `{MonadError M} {A : Type} {A' : Type} `{Similarity A A'} (f : A) (f' : M A') : Prop :=
+  forall a' : A', tryget f' = Some a' ->
+  exists a : A, a =~= a' /\ f = a.
 
-End Client'.
+Definition param1func_corres `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} `{Similarity A A'} `{Similarity B B'} (f : A -> B) (f' : A' -> M B') : Prop :=
+  forall a' : A', forall b' : B', tryget (f' a') = Some b' ->
+  forall a : A, a =~= a' ->
+  exists b : B, b =~= b' /\ f a = b.
 
-#[local] Hint Constructors Client'.corres : core.
+Definition param2func_corres `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} (f : A -> B -> C) (f' : A' -> B' -> M C') : Prop :=
+  forall a' : A', forall b' : B', forall c' : C', tryget (f' a' b') = Some c' ->
+  forall a : A, a =~= a' ->
+  forall b : B, b =~= b' ->
+  exists c : C, c =~= c' /\ f a b = c.
 
-#[global]
-Instance Similarity_Client : Similarity Client.t Client'.t :=
-  Client'.corres.
+Definition param3func_corres `{MonadError M} {A : Type} {A' : Type} {B : Type} {B' : Type} {C : Type} {C' : Type} {D : Type} {D' : Type} `{Similarity A A'} `{Similarity B B'} `{Similarity C C'} `{Similarity D D'} (f : A -> B -> C -> D) (f' : A' -> B' -> C' -> M D') : Prop :=
+  forall a' : A', forall b' : B', forall c' : C', forall d' : D', tryget (f' a' b' c') = Some d' ->
+  forall a : A, a =~= a' ->
+  forall b : B, b =~= b' ->
+  forall c : C, c =~= c' ->
+  exists d : D, d =~= d' /\ f a b c = d.
 
-(** End BASIC_CORRES. *)
-
-Definition downward `{MonadError M} {R : Type} {R' : Type} `{Similarity R R'} (m : identity R) (m' : M R') : Prop :=
+  Definition downward `{MonadError M} {R : Type} {R' : Type} `{Similarity R R'} (m : identity R) (m' : M R') : Prop :=
   forall r' : R',
   tryget m' = Some r' ->
   exists r : R, r =~= r' /\ m = r.
@@ -749,6 +612,150 @@ Proof.
     eapply downward_bind; [xapp | clear z z' z_corres]. xintros z; eauto.
 Qed.
 
+(** End BASIC_CORRES. *)
+
+Module Operation'.
+
+  #[projections(primitive)]
+  Record t : Type :=
+    mk
+    { VersionVector : list nat
+    ; Data : _Data.w
+    }.
+
+  Record corres (op : Operation.t) (op' : Operation'.t) : Prop :=
+    Similarity_Operation_INTRO
+    { VersionVector_corres : op.(Operation.VersionVector) =~= op'.(VersionVector)
+    ; Data_corres : op.(Operation.Data) =~= op'.(Data)
+    }.
+
+End Operation'.
+
+#[local] Hint Constructors Operation'.corres : core.
+
+#[global]
+Instance Similarity_Operation : Similarity Operation.t Operation'.t :=
+  Operation'.corres.
+
+Module Message'.
+
+  #[projections(primitive)]
+  Record t : Type :=
+    mk
+    { MessageType : nat
+    ; C2S_Client_Id : nat
+    ; C2S_Server_Id : nat
+    ; C2S_Client_OperationType : nat
+    ; C2S_Client_Data : _Data.w
+    ; C2S_Client_VersionVector : list nat
+    ; S2S_Gossip_Sending_ServerId : nat
+    ; S2S_Gossip_Receiving_ServerId : nat
+    ; S2S_Gossip_Operations : list Operation'.t
+    ; S2S_Gossip_Index : nat
+    ; S2S_Acknowledge_Gossip_Sending_ServerId : nat
+    ; S2S_Acknowledge_Gossip_Receiving_ServerId : nat
+    ; S2S_Acknowledge_Gossip_Index : nat
+    ; S2C_Client_OperationType : nat
+    ; S2C_Client_Data : _Data.w
+    ; S2C_Client_VersionVector : list nat
+    ; S2C_Server_Id : nat
+    ; S2C_Client_Number : nat
+    }.
+
+  Record corres (msg : Message.t) (msg' : Message'.t) : Prop :=
+    Similarity_Message_INTRO
+    { MessageType_corres : msg.(Message.MessageType) =~= msg'.(MessageType)
+    ; C2S_Client_Id_corres : msg.(Message.C2S_Client_Id) =~= msg'.(C2S_Client_Id)
+    ; C2S_Server_Id_corres : msg.(Message.C2S_Server_Id) =~= msg'.(C2S_Server_Id)
+    ; C2S_Client_OperationType_corres : msg.(Message.C2S_Client_OperationType) =~= msg'.(C2S_Client_OperationType)
+    ; C2S_Client_Data_corres_corres : msg.(Message.C2S_Client_Data) =~= msg'.(C2S_Client_Data)
+    ; C2S_Client_VersionVector_corres : msg.(Message.C2S_Client_VersionVector) =~= msg'.(C2S_Client_VersionVector)
+    ; S2S_Gossip_Sending_ServerId_corres : msg.(Message.S2S_Gossip_Sending_ServerId) =~= msg'.(S2S_Gossip_Sending_ServerId)
+    ; S2S_Gossip_Receiving_ServerId_corres : msg.(Message.S2S_Gossip_Receiving_ServerId) =~= msg'.(S2S_Gossip_Receiving_ServerId)
+    ; S2S_Gossip_Operations_corres : msg.(Message.S2S_Gossip_Operations) =~= msg'.(S2S_Gossip_Operations)
+    ; S2S_Gossip_Index_corres : msg.(Message.S2S_Gossip_Index) =~= msg'.(S2S_Gossip_Index)
+    ; S2S_Acknowledge_Gossip_Sending_ServerId_corres : msg.(Message.S2S_Acknowledge_Gossip_Sending_ServerId) =~= msg'.(S2S_Acknowledge_Gossip_Sending_ServerId)
+    ; S2S_Acknowledge_Gossip_Receiving_ServerId_corres : msg.(Message.S2S_Acknowledge_Gossip_Receiving_ServerId) =~= msg'.(S2S_Acknowledge_Gossip_Receiving_ServerId)
+    ; S2S_Acknowledge_Gossip_Index_corres : msg.(Message.S2S_Acknowledge_Gossip_Index) =~= msg'.(S2S_Acknowledge_Gossip_Index)
+    ; S2C_Client_OperationType_corres : msg.(Message.S2C_Client_OperationType) =~= msg'.(S2C_Client_OperationType)
+    ; S2C_Client_Data_corres : msg.(Message.S2C_Client_Data) =~= msg'.(S2C_Client_Data)
+    ; S2C_Client_VersionVector_corres : msg.(Message.S2C_Client_VersionVector) =~= msg'.(S2C_Client_VersionVector)
+    ; S2C_Server_Id_corres : msg.(Message.S2C_Server_Id) =~= msg'.(S2C_Server_Id)
+    ; S2C_Client_Number_corres : msg.(Message.S2C_Client_Number) =~= msg'.(S2C_Client_Number)
+    }.
+
+End Message'.
+
+#[local] Hint Constructors Message'.corres : core.
+
+#[global]
+Instance Similarity_Message : Similarity Message.t Message'.t :=
+  Message'.corres.
+
+Module Server'.
+
+  #[projections(primitive)]
+  Record t : Type :=
+    mk
+    { Id : nat
+    ; NumberOfServers : nat
+    ; UnsatisfiedRequests : list Message'.t
+    ; VectorClock : list nat
+    ; OperationsPerformed : list Operation'.t
+    ; MyOperations : list Operation'.t
+    ; PendingOperations : list Operation'.t
+    ; GossipAcknowledgements : list nat
+    }.
+
+  Record corres (s : Server.t) (s' : Server'.t) : Prop :=
+    Similarity_Server_INTRO
+    { Id_corres : s.(Server.Id) =~= s'.(Id)
+    ; NumberOfServers_corres : s.(Server.NumberOfServers) =~= s'.(NumberOfServers)
+    ; UnsatisfiedRequests_corres : s.(Server.UnsatisfiedRequests) =~= s'.(UnsatisfiedRequests)
+    ; VectorClock_corres : s.(Server.VectorClock) =~= s'.(VectorClock)
+    ; OperationsPerformed_corres : s.(Server.OperationsPerformed) =~= s'.(OperationsPerformed)
+    ; MyOperations_corres : s.(Server.MyOperations) =~= s'.(MyOperations)
+    ; PendingOperations_corres : s.(Server.PendingOperations) =~= s'.(PendingOperations)
+    ; GossipAcknowledgements_corres : s.(Server.GossipAcknowledgements) =~= s'.(GossipAcknowledgements)
+    }.
+
+End Server'.
+
+#[local] Hint Constructors Server'.corres : core.
+
+#[global]
+Instance Similarity_Server : Similarity Server.t Server'.t :=
+  Server'.corres.
+
+Module Client'.
+
+  #[projections(primitive)]
+  Record t : Type :=
+    mk
+    { Id : nat
+    ; NumberOfServers : nat
+    ; WriteVersionVector : list nat
+    ; ReadVersionVector : list nat
+    ; SessionSemantic : nat
+    }.
+
+  Record corres (c : Client.t) (c' : Client'.t) : Prop :=
+    Similarity_Client_INTRO
+    { Id_corres : c.(Client.Id) =~= c'.(Id)
+    ; NumberOfServers_corres : c.(Client.NumberOfServers) =~= c'.(NumberOfServers)
+    ; WriteVersionVector_corres : c.(Client.WriteVersionVector) =~= c'.(WriteVersionVector)
+    ; ReadVersionVector_corres : c.(Client.ReadVersionVector) =~= c'.(ReadVersionVector)
+    ; SessionSemantic_corres : c.(Client.SessionSemantic) =~= c'.(SessionSemantic)
+    }.
+
+End Client'.
+
+#[local] Hint Constructors Client'.corres : core.
+
+#[global]
+Instance Similarity_Client : Similarity Client.t Client'.t :=
+  Client'.corres.
+
 Ltac des :=
   autounfold with session_hints in *;
   repeat (
@@ -778,7 +785,7 @@ Ltac des :=
     | [ H : _ /\ _ |- _ ] => let H' := fresh H in destruct H as [H H']
     | [ H : (_, _)%core = (_, _)%core |- _ ] => rewrite -> Tac.pair_inv in H
     | [ |- (_, _)%core = (_, _)%core ] => rewrite -> Tac.pair_inv
-    | [ H : exists x, _ |- _ ] => destruct H as [x H]
+    | [ H : exists x, _ |- _ ] => let x' := fresh x in destruct H as [x' H]
     | [ H : is_similar_to _ _ |- _ ] => do 2 red in H
     | [ |- is_similar_to _ _ ] => do 2 red
     end
