@@ -99,6 +99,7 @@ func oneOffVersionVector(v1 []uint64, v2 []uint64) bool {
 	for i < l {
 		if canApply && v1[i]+1 == v2[i] {
 			canApply = false
+			i++
 			continue
 		}
 		if v1[i] < v2[i] {

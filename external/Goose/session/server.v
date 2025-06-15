@@ -102,6 +102,7 @@ Definition oneOffVersionVector: val :=
       (if: (![boolT] "canApply") && (((SliceGet uint64T "v1" (![uint64T] "i")) + #1) = (SliceGet uint64T "v2" (![uint64T] "i")))
       then
         "canApply" <-[boolT] #false;;
+        "i" <-[uint64T] ((![uint64T] "i") + #1);;
         Continue
       else
         (if: (SliceGet uint64T "v1" (![uint64T] "i")) < (SliceGet uint64T "v2" (![uint64T] "i"))
