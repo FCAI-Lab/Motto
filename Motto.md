@@ -19,12 +19,12 @@ compiled with OCaml 5.2.1
 
 ## Progress
 
-- [x] `session_prelude.v` (1332 lines)
+- [x] `session_prelude.v` (1335 lines)
 - [x] `session_definitions.v` (1128 lines)
 - [x] `versionVector.v` (752 lines)
 - [x] `gossip.v` (841 lines)
 - [x] `processRequest.v` (1071 lines)
-- [ ] `u64ToNat.v` (5 refinements remain)
+- [ ] `u64ToNat.v` (4 refinements remain)
 
 ## Notable Changes
 

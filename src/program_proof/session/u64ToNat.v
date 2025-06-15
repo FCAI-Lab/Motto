@@ -1,5 +1,38 @@
 Require Import Perennial.program_proof.session.session_definitions.
 
+Lemma wwe_nat (i : u64)
+  : (W64 (uint.nat i)) = i. 
+Proof.
+  _word.
+Qed.
+
+Lemma wwe_Z (i : u64)
+  : (W64 (uint.Z i)) = i. 
+Proof.
+  _word.
+Qed.
+
+Lemma wwe_nat_1 (i : u64)
+  (LT : uint.Z i <= CONSTANT - 1)
+  : uint.nat (W64 (uint.Z i + 1)) = (uint.nat i + 1)%nat.
+Proof.
+  rewrite CONSTANT_unfold in LT. _word.
+Qed.
+
+Lemma wwe_Z_1 (i : u64)
+  (LT : uint.Z i <= CONSTANT - 1)
+  : uint.Z (W64 (uint.Z i + 1)) = uint.Z i + 1.
+Proof.
+  rewrite CONSTANT_unfold in LT. _word.
+Qed.
+
+Lemma aux_lemma1 (i : u64)
+  (LE : uint.nat i + 1 < CONSTANT - 1)
+  : (uint.Z i + 1 ≤ CONSTANT - 1).
+Proof.
+  _word.
+Qed.
+
 #[local] Opaque _Data.w.
 
 Reserved Infix ">>=" (left associativity, at level 90).
@@ -93,6 +126,14 @@ Lemma ite_corres {A : Type} {A' : Type} {A_SIM : Similarity A A'} (b : bool) (b'
   : (if b then x else y) =~= (if b' then x' else y').
 Proof.
   do 2 red in b_corres; destruct b as [ | ]; subst b'; simpl; eauto.
+Qed.
+
+Lemma at_corres {A : Type} {A' : Type} {A_SIM : Similarity A A'} (n : nat) (n' : nat) (xs : list A) (xs' : list A')
+  (n_corres : n =~= n')
+  (xs_corres : xs =~= xs')
+  : xs !! n =~= xs' !! n'.
+Proof.
+  do 2 red in n_corres. subst n'. revert n. induction xs_corres as [ | x x' xs xs' x_corres xs_corres IH]; simpl in *; destruct n as [ | n]; simpl in *; try congruence; eauto.
 Qed.
 
 Lemma take_corres {A : Type} {A' : Type} {A_SIM : Similarity A A'} (n : nat) (n' : nat) (xs : list A) (xs' : list A')
@@ -572,16 +613,16 @@ Ltac xapp_aux :=
   try ((repeat lazymatch goal with [ H : _ =~= _ |- _ ] => inversion H; subst end); (try do 2 red); trivial).
 
 Ltac xapp0 :=
-  eapply downward_app0; xapp_aux.
+  eapply downward_app0; eauto 2.
 
 Ltac xapp1 :=
-  eapply downward_app1; xapp_aux.
+  eapply downward_app1; eauto 2.
 
 Ltac xapp2 :=
-  eapply downward_app2; xapp_aux.
+  eapply downward_app2; eauto 2.
 
 Ltac xapp3 :=
-  eapply downward_app3; xapp_aux.
+  eapply downward_app3; eauto 2.
 
 Ltac xapp :=
   first
@@ -610,6 +651,15 @@ Proof.
   - eapply downward_pure; trivial.
   - change (fold_left f xs (f z x)) with (bind (M := identity) (isMonad := identity_isMonad) (f z x) (fun y : A => pure (fold_left f xs y))).
     eapply downward_bind; [xapp | clear z z' z_corres]. xintros z; eauto.
+Qed.
+
+Lemma downward_ite `{MonadError M} {A : Type} {A' : Type} `{Similarity A A'} (b : bool) (b' : bool) (e1 : identity A) (e1' : M A') (e2 : identity A) (e2' : M A')
+  (b_corres : b =~= b')
+  (e1_corres : downward e1 e1')
+  (e2_corres : downward e2 e2')
+  : downward (if b then e1 else e2) (if b' then e1' else e2').
+Proof.
+  do 2 red in b_corres. subst b'. destruct b; eauto.
 Qed.
 
 (** End BASIC_CORRES. *)
@@ -1010,7 +1060,9 @@ Module Server_nat.
       'TMP <- fold_left
         ( fun acc : Server.t => fun elem : Operation.t =>
           let server := acc in do
-          if ServerSide.coq_oneOffVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector) then do
+          'b <- ServerSide.coq_oneOffVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector);
+          match b with
+          | true => do
             ret
               {|
                 Server.Id := server.(Server.Id);
@@ -1022,20 +1074,22 @@ Module Server_nat.
                 Server.PendingOperations := server.(Server.PendingOperations);
                 Server.GossipAcknowledgements := server.(Server.GossipAcknowledgements);
               |}
-          else if negb (ServerSide.coq_compareVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector)) then do
-            ret
-              {|
-                Server.Id := server.(Server.Id);
-                Server.NumberOfServers := server.(Server.NumberOfServers);
-                Server.UnsatisfiedRequests := server.(Server.UnsatisfiedRequests);
-                Server.VectorClock := server.(Server.VectorClock);
-                Server.OperationsPerformed := server.(Server.OperationsPerformed);
-                Server.MyOperations := server.(Server.MyOperations);
-                Server.PendingOperations := ServerSide.coq_sortedInsert server.(Server.PendingOperations) elem;
-                Server.GossipAcknowledgements := server.(Server.GossipAcknowledgements);
-              |}
-          else do
-            ret server
+          | false =>
+            if negb (ServerSide.coq_compareVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector)) then do
+              ret
+                {|
+                  Server.Id := server.(Server.Id);
+                  Server.NumberOfServers := server.(Server.NumberOfServers);
+                  Server.UnsatisfiedRequests := server.(Server.UnsatisfiedRequests);
+                  Server.VectorClock := server.(Server.VectorClock);
+                  Server.OperationsPerformed := server.(Server.OperationsPerformed);
+                  Server.MyOperations := server.(Server.MyOperations);
+                  Server.PendingOperations := ServerSide.coq_sortedInsert server.(Server.PendingOperations) elem;
+                  Server.GossipAcknowledgements := server.(Server.GossipAcknowledgements);
+                |}
+            else do
+              ret server
+          end
         )
         request.(Message.S2S_Gossip_Operations)
         server;
@@ -1043,10 +1097,13 @@ Module Server_nat.
       'TMP <- fold_left
         ( fun acc : Server.t * u64 * list u64 => fun elem : Operation.t =>
           let '(server, i, seen) := acc in do
-          if ServerSide.coq_oneOffVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector) then do
-            ret (Server.mk server.(Server.Id) server.(Server.NumberOfServers) server.(Server.UnsatisfiedRequests) (ServerSide.coq_maxTS server.(Server.VectorClock) elem.(Operation.VersionVector)) (ServerSide.coq_sortedInsert server.(Server.OperationsPerformed) elem) server.(Server.MyOperations) server.(Server.PendingOperations) server.(Server.GossipAcknowledgements), W64 (uint.Z i + 1), seen ++ [i])
-          else do
-            ret (server, W64 (uint.Z i + 1), seen)
+          'b <- ServerSide.coq_oneOffVersionVector server.(Server.VectorClock) elem.(Operation.VersionVector);
+          match b with
+          | true => do
+            (Server.mk server.(Server.Id) server.(Server.NumberOfServers) server.(Server.UnsatisfiedRequests) (ServerSide.coq_maxTS server.(Server.VectorClock) elem.(Operation.VersionVector)) (ServerSide.coq_sortedInsert server.(Server.OperationsPerformed) elem) server.(Server.MyOperations) server.(Server.PendingOperations) server.(Server.GossipAcknowledgements), W64 (uint.Z i + 1), seen ++ [i])
+          | false => do
+            (server, W64 (uint.Z i + 1), seen)
+          end
         )
         server.(Server.PendingOperations)
         (server, W64 0, []);
@@ -1070,7 +1127,163 @@ Module Server_nat.
 
   Context `{MonadError M}.
 
-  (* TODO *)
+  Definition coq_receiveGossip (server : Server'.t) (request : Message'.t) : M Server'.t :=
+    if (length request.(Message'.S2S_Gossip_Operations) =? 0)%nat then do
+      ret server
+    else do
+      'TMP <- fold_left'
+        ( fun acc : Server'.t => fun elem : Operation'.t =>
+          let server := acc in do
+          'b <- coq_oneOffVersionVector server.(Server'.VectorClock) elem.(Operation'.VersionVector);
+          match b with
+          | true => do
+            ret
+              {|
+                Server'.Id := server.(Server'.Id);
+                Server'.NumberOfServers := server.(Server'.NumberOfServers);
+                Server'.UnsatisfiedRequests := server.(Server'.UnsatisfiedRequests);
+                Server'.VectorClock := coq_maxTS server.(Server'.VectorClock) elem.(Operation'.VersionVector);
+                Server'.OperationsPerformed := coq_sortedInsert server.(Server'.OperationsPerformed) elem;
+                Server'.MyOperations := server.(Server'.MyOperations);
+                Server'.PendingOperations := server.(Server'.PendingOperations);
+                Server'.GossipAcknowledgements := server.(Server'.GossipAcknowledgements);
+              |}
+          | false =>
+            if negb (coq_compareVersionVector server.(Server'.VectorClock) elem.(Operation'.VersionVector)) then do
+              ret
+                {|
+                  Server'.Id := server.(Server'.Id);
+                  Server'.NumberOfServers := server.(Server'.NumberOfServers);
+                  Server'.UnsatisfiedRequests := server.(Server'.UnsatisfiedRequests);
+                  Server'.VectorClock := server.(Server'.VectorClock);
+                  Server'.OperationsPerformed := server.(Server'.OperationsPerformed);
+                  Server'.MyOperations := server.(Server'.MyOperations);
+                  Server'.PendingOperations := coq_sortedInsert server.(Server'.PendingOperations) elem;
+                  Server'.GossipAcknowledgements := server.(Server'.GossipAcknowledgements);
+                |}
+            else do
+              ret server
+          end
+        )
+        request.(Message'.S2S_Gossip_Operations)
+        server;
+      let server := TMP in do
+      'TMP <- fold_left'
+        ( fun acc : Server'.t * nat * list nat => fun elem : Operation'.t =>
+          let '(server, i, seen) := acc in do
+          'b <- coq_oneOffVersionVector server.(Server'.VectorClock) elem.(Operation'.VersionVector);
+          match b with
+          | true => do
+            put_if (bool_decide (i + 1 <? CONSTANT - 1)%Z) (Server'.mk server.(Server'.Id) server.(Server'.NumberOfServers) server.(Server'.UnsatisfiedRequests) (coq_maxTS server.(Server'.VectorClock) elem.(Operation'.VersionVector)) (coq_sortedInsert server.(Server'.OperationsPerformed) elem) server.(Server'.MyOperations) server.(Server'.PendingOperations) server.(Server'.GossipAcknowledgements), (i + 1)%nat, seen ++ [i])
+          | false => do
+            put_if (bool_decide (i + 1 <? CONSTANT - 1)%Z) (server, (i + 1)%nat, seen)
+          end
+        )
+        server.(Server'.PendingOperations)
+        (server, 0%nat, []);
+      let '(server, _, seen) := TMP in do
+      ret (
+        let '(_, _, output) := fold_left (fun acc : nat * nat * list Operation'.t => fun elem : Operation'.t => let '(i, j, output) := acc in match seen !! j with Some i' => if (i =? i')%nat then ((i + 1)%nat, (j + 1)%nat, output) else ((i + 1)%nat, j, output ++ [elem]) | None => ((i + 1)%nat, j, output ++ [elem]) end) server.(Server'.PendingOperations) (0%nat, 0%nat, []) in do
+        {|
+          Server'.Id := server.(Server'.Id);
+          Server'.NumberOfServers := server.(Server'.NumberOfServers);
+          Server'.UnsatisfiedRequests := server.(Server'.UnsatisfiedRequests);
+          Server'.VectorClock := server.(Server'.VectorClock);
+          Server'.OperationsPerformed := server.(Server'.OperationsPerformed);
+          Server'.MyOperations := server.(Server'.MyOperations);
+          Server'.PendingOperations := output;
+          Server'.GossipAcknowledgements := server.(Server'.GossipAcknowledgements);
+        |}
+      ).
+
+  #[local] Opaque pure.
+  #[local] Opaque bind.
+  #[local] Arguments pure {M} {isMonad} : simpl never.
+  #[local] Arguments bind {M} {isMonad} : simpl never.
+
+  Lemma coq_receiveGossip_corres
+    : param2func_corres (M := M) ServerSide.coq_receiveGossip coq_receiveGossip.
+  Proof.
+    xintros server0 request. unfold coq_receiveGossip. rewrite ServerSide_coq_receiveGossip.
+    eapply downward_ite.
+    { inversion request_corres; subst. erewrite list_corres_length; eauto. do 2 red; eauto. }
+    { eapply downward_pure; trivial. }
+    eapply downward_bind.
+    { eapply downward_fold_left; trivial.
+      - xintros server elem. simpl. eapply downward_bind.
+        + pose proof (coq_oneOffVersionVector_corres (M := M)) as YES.
+          inversion server_corres; subst. inversion elem_corres; subst. xapp2.
+        + xintros b. eapply downward_ite; trivial.
+          * eapply downward_pure. inversion server_corres; subst. inversion elem_corres; subst.
+            split; simpl; trivial.
+            { eapply coq_maxTS_corres; trivial. }
+            { eapply coq_sortedInsert_corres; trivial. }
+          * eapply downward_ite.
+            { eapply negb_corres. inversion server_corres; subst. inversion elem_corres; subst. eapply coq_compareVersionVector_corres; trivial. }
+            { eapply downward_pure. inversion server_corres; subst. inversion elem_corres; subst.
+              split; simpl; trivial. eapply coq_sortedInsert_corres; trivial. 
+            }
+            { eapply downward_pure; trivial. }
+      - inversion request_corres; subst; trivial.
+    }
+    xintros server1. eapply downward_bind.
+    { eapply downward_fold_left.
+      - xintros acc elem. destruct acc as [[server i] seen], acc' as [[server' i'] seen']; simpl in *.
+        destruct acc_corres as [[server_corres i_corres] seen_corres]; simpl in *.
+        eapply downward_bind.
+        + pose proof (coq_oneOffVersionVector_corres (M := M)) as YES.
+          inversion server_corres; subst. inversion elem_corres; subst. xapp2.
+        + xintros b. eapply downward_ite; trivial.
+          * des.
+            { eapply downward_put_if_true. inversion server_corres; subst. inversion elem_corres; subst. split; simpl.
+              - split; simpl.
+                + split; simpl; trivial.
+                  * eapply coq_maxTS_corres; trivial.
+                  * eapply coq_sortedInsert_corres; trivial.
+                + do 2 red. rewrite -> wwe_nat_1; trivial. rewrite -> wwe_Z_1; trivial. split; trivial.
+                  eapply aux_lemma1; trivial.
+              - eapply app_corres; trivial. econstructor 2; eauto. do 2 red; tauto.
+            }
+            { eapply downward_put_if_false. }
+            { inversion H_OBS0. }
+            { eapply downward_put_if_false. }
+          * des.
+            { eapply downward_put_if_true.
+              split; simpl; trivial.
+              split; simpl; trivial.
+              do 2 red. rewrite -> wwe_nat_1; trivial. rewrite -> wwe_Z_1; trivial. subst. split; trivial.
+              eapply aux_lemma1; trivial.
+            }
+            { eapply downward_put_if_false. }
+            { inversion H_OBS0. }
+            { eapply downward_put_if_false. }
+      - inversion server1_corres; subst; trivial.
+      - repeat (split; simpl; trivial). rewrite CONSTANT_unfold. word.
+    }
+    xintros TMP.
+    destruct TMP as [[server i0] seen], TMP' as [[server' i0'] seen']; simpl in *.
+    destruct TMP_corres as [[server_corres i0_corres] seen_corres]; simpl in *.
+    eapply downward_pure. eapply let3_corres.
+    - eapply fold_left_corres.
+      + intros acc acc' acc_corres elem elem' elem_corres.
+        destruct acc as [[i j] output], acc' as [[i' j'] output']; simpl in *.
+        destruct acc_corres as [[i_corres j_corres] output_corres]; simpl in *.
+        eapply match_option_corres.
+        * eapply at_corres; trivial.
+        * intros i1 i1' i1_corres. eapply ite_corres.
+          { do 2 red. do 2 red in i1_corres. destruct i1_corres as [<- i1_corres]. des; try word. }
+          { split; simpl; trivial. split; simpl; do 2 red in i_corres, j_corres |- *; try word. }
+          { split; simpl.
+            - split; simpl; trivial. do 2 red in i_corres |- *. congruence.
+            - eapply app_corres; trivial. econstructor 2; eauto.
+          }
+        * split; simpl.
+          { split; simpl; trivial. do 2 red in i_corres |- *. congruence. }
+          { eapply app_corres; trivial. econstructor 2; eauto. }
+      + inversion server_corres; subst; trivial.
+      + split; simpl; eauto. split; simpl; do 2 red; eauto.
+    - intros _ _ _ _ _ _ output output' output_corres. inversion server_corres; subst. split; simpl; trivial.
+  Qed.
 
   End refine_coq_receiveGossip.
 

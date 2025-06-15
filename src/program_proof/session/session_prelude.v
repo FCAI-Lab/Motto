@@ -2,8 +2,11 @@ From Perennial.program_proof Require Export std_proof grove_prelude.
 
 #[global] Create HintDb session_hints.
 
+Ltac _word :=
+  word.
+
 #[global] Tactic Notation "word" :=
-  first [lia | intros; word].
+  first [lia | intros; _word].
 
 Module Tac.
 
