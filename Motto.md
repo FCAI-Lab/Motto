@@ -54,4 +54,4 @@ compiled with OCaml 5.2.1
 ### 2025-06-15
 
 - Fixed `server.go`: 
-+ Removed `continue` in `oneOffVersionVector`.
+  + Removed `continue` in `oneOffVersionVector`.
